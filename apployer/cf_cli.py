@@ -93,7 +93,7 @@ def buildpacks():
     Returns:
         list[`BuildpackDescription`]: A list of buildpacks on the environment.
     """
-    out = _get_command_output([CF, 'buildpacks'])
+    out = get_command_output([CF, 'buildpacks'])
     buildpack_lines = out.splitlines()[3:]
     return [BuildpackDescription(*buildpack_line.split()) for buildpack_line in buildpack_lines]
 
@@ -213,7 +213,19 @@ def env(app_name):
     Returns:
         str: Application's environment configuration as string.
     """
-    return _get_command_output([CF, 'env', app_name])
+    return get_command_output([CF, 'env', app_name])
+
+
+def get_service_guid(service_name):
+    """
+    Args:
+        service_name (str): Name of a service instace (can be a user-provided one).
+
+    Returns:
+        str: GUID of the service instance that can be used in API calls.
+    """
+    cmd_output = get_command_output([CF, 'service', '--guid', service_name])
+    return cmd_output.split()[0]
 
 
 def oauth_token():
@@ -221,7 +233,7 @@ def oauth_token():
     Returns:
         str: User's OAuth token.
     """
-    command_out = _get_command_output([CF, 'oauth-token'])
+    command_out = get_command_output([CF, 'oauth-token'])
     return command_out.splitlines()[-1]
 
 
@@ -272,7 +284,7 @@ def service(service_name):
     Returns:
         str: Service instance info.
     """
-    return _get_command_output([CF, 'service', service_name])
+    return get_command_output([CF, 'service', service_name])
 
 
 def update_buildpack(buildpack_name, buildpack_path):
@@ -363,6 +375,25 @@ def target(org, space):
     _run_command([CF, 'target', '-o', org, '-s', space])
 
 
+def get_command_output(command):
+    """Gets output of a generic command.
+
+    Args:
+        command (list[str]): List of command parts (like in constructor of Popen)
+
+    Raises:
+        CommandFailedError: When the command fails (returns non-zero code).
+    """
+    proc = Popen(command, stdout=PIPE)
+    return_code = proc.wait()
+    output = proc.stdout.read()
+
+    if return_code == 0:
+        return output
+    else:
+        raise CommandFailedError('Failed command: {}\nOutput: {}'.format(' '.join(command), output))
+
+
 def _run_command(command, work_dir='.', redirect_output=True):
     """Runs a generic command without capturing its output.
 
@@ -384,22 +415,3 @@ def _run_command(command, work_dir='.', redirect_output=True):
         proc = Popen(command, cwd=work_dir)
         if proc.wait() != 0:
             raise CommandFailedError('Failed command: {}'.format(' '.join(command)))
-
-
-def _get_command_output(command):
-    """Gets output of a generic command.
-
-    Args:
-        command (list[str]): List of command parts (like in constructor of Popen)
-
-    Raises:
-        CommandFailedError: When the command fails (returns non-zero code).
-    """
-    proc = Popen(command, stdout=PIPE)
-    return_code = proc.wait()
-    output = proc.stdout.read()
-
-    if return_code == 0:
-        return output
-    else:
-        raise CommandFailedError('Failed command: {}\nOutput: {}'.format(' '.join(command), output))

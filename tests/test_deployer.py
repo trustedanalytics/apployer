@@ -28,7 +28,8 @@ from apployer.appstack import (AppStack, AppConfig, UserProvidedService, BrokerC
 from apployer.cf_cli import CommandFailedError
 
 from .fake_cli_outputs import GET_ENV_SUCCESS
-from .utils import artifacts_location, get_appstack_resource
+from .utils import get_appstack_resource
+from .test_cf_api import SERVICE_BINDING
 
 
 @pytest.fixture
@@ -54,14 +55,19 @@ def app_deployer(filled_appstack, apployer_output):
     return deployer.AppDeployer(app, apployer_output)
 
 
-def test_get_app_version(app_deployer, monkeypatch):
+@pytest.fixture
+def mock_cf_cli(monkeypatch):
+    mock_cf = MagicMock()
+    monkeypatch.setattr('apployer.deployer.cf_cli', mock_cf)
+    return mock_cf
+
+
+def test_get_app_version(app_deployer, mock_cf_cli):
     app_version = '6.6.6'
-    get_version_mock = MagicMock()
-    get_version_mock.return_value = GET_ENV_SUCCESS
-    monkeypatch.setattr('apployer.cf_cli.env', get_version_mock)
+    mock_cf_cli.env.return_value = GET_ENV_SUCCESS
 
     assert app_deployer._get_app_version() == app_version
-    get_version_mock.assert_called_once_with(app_deployer.app.name)
+    mock_cf_cli.env.assert_called_once_with(app_deployer.app.name)
 
 
 def test_prepare_app(artifacts_location, app_deployer):
@@ -96,7 +102,7 @@ def test_check_push_needed_get_version_fail():
     assert app_deployer._check_push_needed(deployer.UPGRADE_STRATEGY)
 
 
-def test_push_app(app_deployer, monkeypatch):
+def test_push_app(app_deployer, monkeypatch, mock_cf_cli):
     # arrange
     artifacts_location = '/bla/release/apps'
     push_strategy = 'some-fake-strategy'
@@ -104,11 +110,10 @@ def test_push_app(app_deployer, monkeypatch):
     prepared_app_path = '/bla/release/apps/tested_app'
     app_manifest_location = os.path.join(prepared_app_path, deployer.AppDeployer.FILLED_MANIFEST)
 
-    mock_push, mock_check_call, mock_prepare = [MagicMock() for _ in range(3)]
+    mock_check_call, mock_prepare = [MagicMock() for _ in range(2)]
     app_deployer._check_push_needed = lambda _: True
     app_deployer.prepare = mock_prepare
     mock_prepare.return_value = prepared_app_path
-    monkeypatch.setattr('apployer.cf_cli.push', mock_push)
     monkeypatch.setattr('apployer.deployer.subprocess.check_call', mock_check_call)
 
     # act
@@ -116,39 +121,17 @@ def test_push_app(app_deployer, monkeypatch):
 
     # assert
     mock_prepare.assert_called_with(artifacts_location)
-    mock_push.assert_called_with(prepared_app_path, app_manifest_location,
+    mock_cf_cli.push.assert_called_with(prepared_app_path, app_manifest_location,
                                  app_deployer.app.push_options.params)
     mock_check_call.called_with(post_commands.split())
 
 
 def test_push_app_not_needed(app_deployer, monkeypatch):
-    mock_check_call, mock_restart = MagicMock(), MagicMock()
+    mock_check_call = MagicMock()
     app_deployer._check_push_needed = lambda _: False
-    monkeypatch.setattr('apployer.cf_cli.restart', mock_restart)
     monkeypatch.setattr('apployer.deployer.subprocess.check_call', mock_check_call)
 
     app_deployer._push_app('/bla/release/apps', 'some-fake-strategy')
-
-    mock_restart.assert_called_with(app_deployer.app.name)
-
-
-@pytest.fixture
-def mock_cf_cli(monkeypatch):
-    mock_cf = MagicMock()
-    monkeypatch.setattr('apployer.deployer.cf_cli', mock_cf)
-    return mock_cf
-
-
-def test_rebind_services(mock_cf_cli):
-    services = ['a', 'b', 'c']
-    app = AppConfig('bla', app_properties={'services': services})
-    app_deployer = deployer.AppDeployer(app, 'fake-output-path')
-
-    app_deployer._rebind_services()
-
-    calls = [mock.call(app.name, service_name) for service_name in services]
-    assert mock_cf_cli.unbind_service.call_args_list == calls
-    assert mock_cf_cli.bind_service.call_args_list == calls
 
 
 @pytest.fixture
@@ -214,28 +197,75 @@ def test_enable_broker_access_no_broker_service(broker, mock_cf_cli):
     mock_cf_cli.enable_service_access.assert_called_once_with(broker.name)
 
 
-def test_create_user_provided_service(monkeypatch):
-    mock_create_ups, mock_update_ups = MagicMock(), MagicMock()
-    monkeypatch.setattr('apployer.cf_cli.create_user_provided_service', mock_create_ups)
-    monkeypatch.setattr('apployer.cf_cli.update_user_provided_service', mock_update_ups)
-    mock_update_ups.side_effect = CommandFailedError
-    ups = UserProvidedService('bla', {'a': 'b'})
-
-    deployer.setup_user_provided_service(ups)
-
-    mock_update_ups.assert_called_with(ups.name, json.dumps(ups.credentials))
-    mock_create_ups.assert_called_with(ups.name, json.dumps(ups.credentials))
+@pytest.fixture
+def upsi_deployer():
+    upsi = UserProvidedService('some-name', {'a': 'b'})
+    return deployer.UpsiDeployer(upsi)
 
 
-def test_update_user_provided_service(monkeypatch):
-    mock_create_ups, mock_update_ups = MagicMock(), MagicMock()
-    monkeypatch.setattr('apployer.cf_cli.create_user_provided_service', mock_create_ups)
-    monkeypatch.setattr('apployer.cf_cli.update_user_provided_service', mock_update_ups)
+def test_create_user_provided_service(mock_cf_cli, upsi_deployer):
+    mock_cf_cli.get_service_guid.side_effect = CommandFailedError
 
-    deployer.setup_user_provided_service(UserProvidedService('bla', {'a': 'b'}))
+    upsi_deployer.deploy()
 
-    assert mock_update_ups.call_args_list
-    assert not mock_create_ups.call_args_list
+    mock_cf_cli.get_service_guid.assert_called_with(upsi_deployer.service.name)
+    mock_cf_cli.create_user_provided_service.assert_called_with(
+        upsi_deployer.service.name, json.dumps(upsi_deployer.service.credentials))
+
+
+def test_update_user_provided_service_needed(mock_cf_cli, upsi_deployer):
+    service_guid = 'some-fake-guid'
+    app_guids = ['some', 'fake', 'guids']
+    mock_cf_cli.get_service_guid.return_value = service_guid
+    mock_update = MagicMock(return_value=app_guids)
+    upsi_deployer._update = mock_update
+
+    assert upsi_deployer.deploy() == app_guids
+
+    mock_update.assert_called_with(service_guid)
+
+
+@pytest.fixture
+def mock_cf_api(monkeypatch):
+    cf_api = MagicMock()
+    monkeypatch.setattr('apployer.deployer.cf_api', cf_api)
+    return cf_api
+
+
+def test_update_upsi(mock_cf_api, mock_cf_cli, upsi_deployer):
+    service_guid = 'some-fake-guid'
+    service_bindings = [SERVICE_BINDING]
+    mock_cf_api.get_upsi_bindings.return_value = service_bindings
+    mock_cf_api.get_upsi_credentials.return_value = {'something': 123}
+    upsi_deployer._rebind_services = MagicMock()
+
+    assert upsi_deployer._update(service_guid) == [SERVICE_BINDING['entity']['app_guid']]
+
+    mock_cf_api.get_upsi_credentials.assert_called_with(service_guid)
+    mock_cf_api.get_upsi_bindings.assert_called_with(service_guid)
+    mock_cf_cli.update_user_provided_service(
+        upsi_deployer.service.name, json.dumps(upsi_deployer.service.credentials))
+    upsi_deployer._rebind_services.assert_called_with(service_bindings)
+
+
+def test_update_upsi_not_needed(mock_cf_api, mock_cf_cli, upsi_deployer):
+    service_guid = 'some-fake-guid'
+    mock_cf_api.get_upsi_credentials.return_value = upsi_deployer.service.credentials
+
+    assert upsi_deployer._update(service_guid) == []
+
+    mock_cf_api.get_upsi_credentials.assert_called_with(service_guid)
+    assert not mock_cf_api.get_upsi_bindings.call_args_list
+    assert not mock_cf_cli.update_user_provided_service.call_args_list
+
+
+def test_rebind_services(mock_cf_api, upsi_deployer):
+    upsi_deployer._rebind_services([SERVICE_BINDING])
+
+    mock_cf_api.delete_service_binding.assert_called_with(SERVICE_BINDING)
+    mock_cf_api.create_service_binding.assert_called_with(
+        SERVICE_BINDING['entity']['service_instance_guid'],
+        SERVICE_BINDING['entity']['app_guid'])
 
 
 def test_setup_service_instance(broker, mock_cf_cli):
@@ -301,11 +331,9 @@ def test_run_ignoring_errors():
 
 # TODO test register in application broker
 
-
+# TODO this should be a more integration test. It should work on mocked out CF or mocked CF CLI
 # @pytest.mark.xfail
 # def test_deploy_appstack_with_artifacts(artifacts_location, cf_info, monkeypatch):
 #     filled_appstack = ''
 #
 #     deployer.deploy_appstack(cf_info, filled_appstack, artifacts_location)
-
-    # TODO this should be a more integration test. It should work on mocked out CF or mocked CF CLI

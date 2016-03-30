@@ -224,23 +224,21 @@ def _seconds_to_time(seconds):
 # --dry-run (deployer functions should be in a class, some methods need to be overwritten,
 #   need to check for existance first before trying to update/create services)
 # make installable and testable for py26 (no networkx)
-# add retrying of CF CLI methods
-# automatically download CF CLI
+# Brokers serving instances that hold no data (like all WSSB brokers) can be marked as "recreatable"
+#   or something. Then, they could be recreated and rebound to apps when WSSB configuration changes.
+#   Right now it won't happen, because there's no universal way of recreating a service instance.
 # add app timeout parameter (default should be 180 seconds), think about enxanced timeout and
 #   differentiation between continuous crash and timeout
 # make all docstrings conform to Google standard
-# Implement getting of upsi config and a list of service binding as a CF API client.
-#   The client will need to get a token through CF CLI and hold it until it's valid.
-#   Validity check can be done by parsing the token and looking at "expires" field.
+
 
 # TODO secondary
+# add retrying of CF CLI methods
+# automatically download CF CLI
 # Change "order" parameter in app configuration to "after" (a list). This way we can explicitly
 #   define that some application needs to be created before the given one so it can work.
 #   E.g. in hdfs-broker config: after: [auth-gateway]
 #   Those dependencies can be resolved on the graph.
-# Brokers serving instances that hold no data (like all WSSB brokers) can be marked as "recreatable"
-#   or something. Then, they could be recreated and rebound to apps when WSSB configuration changes.
-#   Right now it won't happen, because there's no universal way of recreating a service instance.
 # Add a meaningful integration test and get rid of some unit tests with a lot of mocks.
 # make creation of upsis and service instances parallel
 #   (just use a ThreadPool for running them)

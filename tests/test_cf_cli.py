@@ -16,19 +16,16 @@
 
 from mock import call
 import pytest
-from testfixtures.popen import MockPopen
 
 from .fake_cli_outputs import GET_ENV_SUCCESS, GET_SERVICE_INFO_SUCCESS
 from apployer import cf_cli
 from apployer.cf_cli import CommandFailedError, CfInfo
 
 
-@pytest.yield_fixture
-def mock_popen(monkeypatch):
-    mock_popen = MockPopen()
-    monkeypatch.setattr('apployer.cf_cli.Popen', mock_popen)
-    yield mock_popen
-    assert mock_popen.mock.method_calls
+def test_run_command_output_without_redirection_fail(mock_popen):
+    mock_popen.set_command('cf bla', returncode=1)
+    with pytest.raises(CommandFailedError):
+        cf_cli._run_command([cf_cli.CF, 'bla'], redirect_output=False)
 
 
 def test_get_app_env(mock_popen):
@@ -234,3 +231,12 @@ bearer abcdf.1233456789.fdcba
     mock_popen.set_command('cf oauth-token', stdout=cmd_output)
 
     assert cf_cli.oauth_token() == 'bearer abcdf.1233456789.fdcba'
+
+
+def test_get_service_guid(mock_popen):
+    service_guid = '8b89a54b-b292-49eb-a8c4-2396ec038120'
+    cmd_output = service_guid + '\n'
+    service_name = 'some-service'
+    mock_popen.set_command('cf service --guid {}'.format(service_name), stdout=cmd_output)
+
+    assert cf_cli.get_service_guid(service_name) == service_guid

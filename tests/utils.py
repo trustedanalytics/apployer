@@ -15,9 +15,6 @@
 #
 
 import os
-import zipfile
-
-import pytest
 
 
 def get_appstack_resource_dir():
@@ -36,18 +33,3 @@ def get_cfclient_resource(resource_name):
 def _get_resource_dir():
     test_dir = os.path.realpath(os.path.dirname(__file__))
     return os.path.join(test_dir, 'resources')
-
-
-@pytest.fixture
-def artifacts_location(tmpdir):
-    artifacts_path = tmpdir.strpath
-    resources_path = get_appstack_resource_dir()
-    for manifest in [f for f in os.listdir(resources_path) if f.startswith('manifest')]:
-        manifest_path = os.path.join(resources_path, manifest)
-        app_name = manifest.split('_')[1].split('.')[0]
-
-        # TODO later it should ignore the version in zip files
-        zip_path = os.path.join(artifacts_path, app_name + '.zip')
-        with zipfile.ZipFile(zip_path, mode='w') as zf:
-            zf.write(manifest_path, 'manifest.yml')
-    return artifacts_path

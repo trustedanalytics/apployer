@@ -22,7 +22,7 @@ import yaml
 
 from apployer.appstack import AppConfig, AppStack, UserProvidedService, BrokerConfig
 from apployer.appstack_expand import expand_appstack, _sort_appstack
-from .utils import artifacts_location, get_appstack_resource_dir
+from .utils import get_appstack_resource_dir
 
 app_a_upsi_name = 'app_a_upsi'
 app_a = AppConfig(

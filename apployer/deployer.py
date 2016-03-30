@@ -26,11 +26,12 @@ from os import path
 import subprocess
 from zipfile import ZipFile
 
+import datadiff
 from pkg_resources import parse_version
 import yaml
 
 import apployer.app_file as app_file
-from apployer import cf_cli
+from apployer import cf_cli, cf_api
 from .cf_cli import CommandFailedError
 
 _log = logging.getLogger(__name__) #pylint: disable=invalid-name
@@ -60,8 +61,10 @@ def deploy_appstack(cf_login_data, filled_appstack, artifacts_path,
     """
     _prepare_org_and_space(cf_login_data)
 
+    apps_to_restart = []
     for service in filled_appstack.user_provided_services:
-        run_ignoring_errors(ignore_errors, setup_user_provided_service, service)
+        affected_apps = UpsiDeployer(service, ignore_errors).deploy()
+        apps_to_restart.extend(affected_apps)
 
     for broker in filled_appstack.brokers:
         run_ignoring_errors(ignore_errors, setup_broker, broker)
@@ -70,7 +73,11 @@ def deploy_appstack(cf_login_data, filled_appstack, artifacts_path,
         run_ignoring_errors(ignore_errors, setup_buildpack, buildpack, artifacts_path)
 
     for app in filled_appstack.apps:
-        AppDeployer(app, DEPLOYER_OUTPUT, ignore_errors).deploy(artifacts_path, push_strategy)
+        app_deployer = AppDeployer(app, DEPLOYER_OUTPUT, ignore_errors)
+        affected_apps = app_deployer.deploy(artifacts_path, push_strategy)
+        apps_to_restart.extend(affected_apps)
+
+    _restart_apps(filled_appstack, apps_to_restart, ignore_errors)
 
     names_to_apps = {app.name: app for app in filled_appstack.apps}
     for app in filled_appstack.apps:
@@ -110,13 +117,7 @@ def run_ignoring_errors(ignore, func, *args, **kwargs):
             raise ex
 
 
-class AppVersionNotFoundError(Exception):
-    """
-    'VERSION' environment variable wasn't present for an application.
-    """
-
-
-# TODO test
+# TODO test this
 def register_in_application_broker(registered_app, application_broker, app_domain,
                                    unpacked_apps_dir, artifacts_location):
     """Registers an application in another application that provides some special functionality.
@@ -266,27 +267,101 @@ def setup_service_instance(broker, service_instance):
         _log.debug('Created instance %s of service %s.', service_instance.name, broker_name)
 
 
-def setup_user_provided_service(service):
-    """Sets up a user provided service. It will be updated if it exists, it will be created
-    otherwise.
+class UpsiDeployer(object):
+    """Does the setup of a single user-provided service instance.
+
+    Attributes:
+        service (`apployer.appstack.UserProvidedService`): Service's configuration from the filled
+            expanded appstack.
+        ignore_errors (bool): If set to True errors won't stop deployment.
 
     Args:
-        service (`apployer.appstack.UserProvidedService`): Configuration of a user provided
-            service.
-
-    Raises:
-        CommandFailedError: Failed to set up the service.
+        service (`apployer.appstack.UserProvidedService`): See class attributes.
+        ignore_errors (bool): See class attributes.
     """
-    _log.info('Setting up user provided service %s...', service.name)
-    service_args = (service.name, json.dumps(service.credentials))
-    try:
-        cf_cli.update_user_provided_service(*service_args)
-    except CommandFailedError as ex:
-        _log.debug(str(ex))
-        _log.info("Failed to update user provided service (%s), assuming it doesn't exist yet.\n"
-                  "Gonna create it now...", service.name)
-        cf_cli.create_user_provided_service(*service_args)
-        _log.debug('Created user provided service %s.', service.name)
+
+    def __init__(self, service, ignore_errors=False):
+        self.service = service
+        self.ignore_errors = ignore_errors
+
+    def deploy(self):
+        """Sets up a user provided service. It will be created if it doesn't exist.
+        It will be updated if it exists and its credentials in the live environment are different
+        than in appstack.
+
+        Returns:
+            list[str]: List of applications (their guids) that need to be restarted because of the
+                update of this service. This list will be empty when there's nothing to restart.
+
+        Raises:
+            CommandFailedError: Failed to set up the service.
+        """
+        service_name = self.service.name
+        _log.info('Setting up user provided service %s...', service_name)
+        try:
+            service_guid = cf_cli.get_service_guid(service_name)
+            _log.info('User provided service %s has GUID %s.', service_name, service_guid)
+        except CommandFailedError as ex:
+            _log.debug(str(ex))
+            _log.info("Failed to get GUID of user provided service %s, assuming it doesn't exist "
+                      "yet. Gonna create it now...", service_name)
+            run_ignoring_errors(self.ignore_errors, cf_cli.create_user_provided_service,
+                                service_name, json.dumps(self. service.credentials))
+            _log.debug('Created user provided service %s.', service_name)
+            return []
+
+        return self._update(service_guid)
+
+    def _update(self, service_guid):
+        """Updates the service if it's different in the appstack and in the live environment.
+
+        Args:
+            service_guid (str): GUID of a service.
+
+        Returns:
+            list[str]: List of applications (their guids) that need to be restarted because of the
+                update of this service. This list will be empty when there's nothing to restart
+        """
+        service_name = self.service.name
+        appstack_credentials = self.service.credentials
+        live_credentials = cf_api.get_upsi_credentials(service_guid)
+
+        if live_credentials != appstack_credentials:
+            _log.info('User provided service %s is different in the live environment and appstack. '
+                      'Will update it...', service_name)
+            _log.debug('Service credentials differences:\n%s',
+                       datadiff.diff(live_credentials, appstack_credentials,
+                                     fromfile='live env', tofile='appstack'))
+            run_ignoring_errors(self.ignore_errors, cf_cli.update_user_provided_service,
+                                service_name, json.dumps(appstack_credentials))
+
+            service_bindings = run_ignoring_errors(self.ignore_errors, cf_api.get_upsi_bindings,
+                                                   service_guid)
+            _log.info('Rebinding apps to service instance %s...', service_name)
+            self._rebind_services(service_bindings)
+
+            app_guids = [binding['entity']['app_guid'] for binding in service_bindings]
+            return app_guids
+        else:
+            _log.info('Service %s already exists and is up-to-date. No need to do anything...',
+                      service_name)
+            return []
+
+    def _rebind_services(self, bindings):
+        """Recreates the given service bindings..
+
+        Args:
+            bindings (list[dict]): List of dictionaries representing a binding.
+                Binding has "metadata" and "entity" fields.
+        """
+        for binding in bindings:
+            service_guid = binding['entity']['service_instance_guid']
+            app_guid = binding['entity']['app_guid']
+            _log.debug('Rebinding %s to %s...', service_guid, app_guid)
+
+            run_ignoring_errors(self.ignore_errors, cf_api.delete_service_binding, binding)
+            run_ignoring_errors(self.ignore_errors, cf_api.create_service_binding,
+                                service_guid, app_guid)
 
 
 class AppDeployer(object):
@@ -297,6 +372,11 @@ class AppDeployer(object):
             expanded appstack.
         output_path (str): Output path for Apployer. Application artifacts will be unpacked there.
         ignore_errors (bool): If set to True errors won't stop deployment.
+
+    Args:
+        app (`apployer.appstack.AppConfig`): See class attributes.
+        output_path (str): See class attributes.
+        ignore_errors (bool): See class attributes.
     """
 
     FILLED_MANIFEST = 'filled_manifest.yml'
@@ -316,16 +396,23 @@ class AppDeployer(object):
             artifacts_location (str): Path to a directory containing artifacts in ZIP format.
                 There shouldn't be any non-artifact ZIP files there.
             push_strategy (str): Strategy for pushing the application.
+
+        Returns:
+            list[str]: List of applications (their guids) that need to be restarted because of
+                updates of user-provided services provided by this applications.
+                This list will be empty when there's nothing to restart.
         """
         _log.info('Setting up application %s...', self.app.name)
-        if self._exists():
-            run_ignoring_errors(self.ignore_errors, self._rebind_services)
-
         run_ignoring_errors(self.ignore_errors, self._push_app, artifacts_location, push_strategy)
+
+        apps_to_restart = []
         for service in self.app.user_provided_services:
-            run_ignoring_errors(self.ignore_errors, setup_user_provided_service, service)
+            affected_apps = UpsiDeployer(service, self.ignore_errors).deploy()
+            apps_to_restart.extend(affected_apps)
+
         if self.app.broker_config:
             run_ignoring_errors(self.ignore_errors, setup_broker, self.app.broker_config)
+        return apps_to_restart
 
     def prepare(self, artifacts_location):
         """Prepares the application for deployment. It extracts the artifact and saves a full
@@ -358,64 +445,22 @@ class AppDeployer(object):
 
         return unpacked_path
 
-    def _exists(self):
-        """
-        Returns:
-            bool: True if the app is already present on the live environment. False otherwise
-        """
-        try:
-            cf_cli.env(self.app.name)
-            _log.debug('App %s exists.', self.app.name)
-            return True
-        except CommandFailedError as ex:
-            _log.debug("App %s doesn't exists.\n%s", self.app.name, str(ex))
-            return False
-
-    def _rebind_services(self):
-        """Rebinds all services that this apps depends on.
-
-        User provided services might have been changed during the deployment up to this moment.
-        We cannot determine what services have really been modified without some global state
-        and we want to avoid having that.
-        So, as a precaution, we rebind everything.
-
-        Once listing of service bindings for a particular user provided service if provided through
-        some CF API client, then it could be more elegant.
-        """
-        app_name = self.app.name
-        _log.info('Rebinding service instances for app %s...', app_name)
-        for service_name in self.app.app_properties.get('services', []):
-            _log.debug('Rebinding %s to %s...', service_name, app_name)
-            cf_cli.unbind_service(app_name, service_name)
-            cf_cli.bind_service(app_name, service_name)
-
     def _push_app(self, artifacts_location, push_strategy):
         """Pushes an application to Cloud Foundry. Or not, if the conditions aren't right.
         Can also restart it.
         """
-        def _do_push():
+        if self._check_push_needed(push_strategy):
             _log.info('Pushing app %s...', self.app.name)
             prepared_app_path = self.prepare(artifacts_location)
             app_manifest_location = path.join(prepared_app_path, self.FILLED_MANIFEST)
             cf_cli.push(prepared_app_path, app_manifest_location, self.app.push_options.params)
 
-        if self._check_push_needed(push_strategy):
-            _do_push()
-        elif '--no-start' in self.app.push_options.params:
-            _log.info("No need to push or restart app %s. It's already in good version and it's "
-                      "not meant to be started.", self.app.name)
-        else:
-            _log.info('No need to push app %s. Restarting it so it can load new service configs...',
-                      self.app.name)
-            try:
-                cf_cli.restart(self.app.name)
-            except CommandFailedError as ex:
-                _log.warning('Failed to restart an application. Will try to push it...'
-                             '\nRestart error: %s', str(ex))
-                _do_push()
-        if self.app.push_options.post_command:
-            _log.info('App %s has post-push commands, executing...', self.app.name)
+            if self.app.push_options.post_command:
+                _log.info('App %s has post-push commands, executing...', self.app.name)
             subprocess.check_call(self.app.push_options.post_command, shell=True)
+        else:
+            _log.info("No need to push app %s, it's already up-to-date...", self.app.name)
+
 
     def _check_push_needed(self, push_strategy):
         _log.debug('Checking whether to push app %s...', self.app.name)
@@ -453,6 +498,12 @@ class AppDeployer(object):
         return app_version_line.split()[1]
 
 
+class AppVersionNotFoundError(Exception):
+    """
+    'VERSION' environment variable wasn't present for an application.
+    """
+
+
 def _prepare_org_and_space(cf_login_data):
     """Logs into CloudFoundry and prepares organization and space for deployment.
 
@@ -465,3 +516,27 @@ def _prepare_org_and_space(cf_login_data):
     cf_cli.create_org(cf_login_data.org)
     cf_cli.create_space(cf_login_data.space, cf_login_data.org)
     cf_cli.target(cf_login_data.org, cf_login_data.space)
+
+
+def _restart_apps(filled_appstack, app_guids, ignore_errors):
+    """Restarts applications. These apps need to be restarted because some user-provided services
+    bound to them have changed.
+
+    Args:
+        filled_appstack (`apployer.appstack.AppStack`): Expanded appstack filled with configuration
+            extracted from a live TAP environment.
+        app_guids (list[str]): Applications GUIDs.
+        ignore_errors (bool): If set to True errors won't stop further restarts.
+    """
+    # TODO need to check if an app has --no-start param
+    app_names = [cf_api.get_app_name(app_guid) for app_guid in app_guids]
+
+    for app_name in app_names:
+        app = next(app for app in filled_appstack.apps if app.name == app_name)
+        if '--no-start' not in app.push_options.params:
+            _log.info("Restarting app %s because some of user-provided services bound to it have "
+                      "changed...", app_name)
+            run_ignoring_errors(ignore_errors, cf_cli.restart, app_name)
+        else:
+            _log.info("Some of user-provided services bound to app %s have changed, but there's no "
+                      "need to restart it, since it has the '--no-start' flag.", app_name)
