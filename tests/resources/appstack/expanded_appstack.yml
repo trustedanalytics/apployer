@@ -1,0 +1,116 @@
+# Since no values here needs to be filled with configuration from a live environment,
+# this file can also imitate a filled expanded appstack.
+apps:
+- app_properties:
+    name: H
+  artifact_name: H
+  broker_config:
+    auth_password: H_password
+    auth_username: H_user
+    url: https://h.example.com
+    name: H_broker
+    service_instances:
+    - name: H_instance_1
+      plan: free
+    - name: H_instance_2
+      plan: free
+  name: H
+- app_properties:
+    name: G
+    services:
+    - H_instance_2
+  artifact_name: G
+  broker_config:
+    auth_password: G_password
+    auth_username: G_user
+    url: https://g.example.com
+    name: G_broker
+    service_instances:
+    - name: G_instance_1
+      plan: free
+    - name: G_instance_2
+      plan: free
+    - name: G_instance_3
+      plan: free
+  name: G
+- app_properties:
+    name: E
+    services:
+    - H_instance_1
+  artifact_name: E
+  broker_config:
+    auth_password: E_password
+    auth_username: E_user
+    url: https://e.example.com
+    name: E_broker
+    service_instances:
+    - name: E_instance_1
+      plan: free
+  name: E
+- app_properties:
+    name: B
+    services:
+    - E_instance_1
+    - global_instance_1
+  artifact_name: B
+  name: B
+  push_options:
+    params: '--no-start'
+    post_command: 'curl https://b.example.com'
+  user_provided_services:
+  - credentials:
+      url: https://b.example.com
+    name: B_instance
+- app_properties:
+    name: F
+    services:
+    - G_instance_3
+  artifact_name: F
+  name: F
+  user_provided_services:
+  - credentials:
+      url: https://f.example.com
+    name: F_instance
+- app_properties:
+    name: C
+    services:
+    - F_instance
+    - G_instance_1
+  artifact_name: X
+  name: C
+  user_provided_services:
+  - credentials:
+      url: https://c.example.com
+    name: C_instance
+- app_properties:
+    name: D
+    services:
+    - G_instance_2
+    - F_instance
+  artifact_name: D
+  name: D
+  user_provided_services:
+  - credentials:
+      url: https://d.example.com
+    name: D_instance
+- app_properties:
+    name: A
+    services:
+    - D_instance
+    - B_instance
+    - global_user_provided_instance_1
+    - C_instance
+  artifact_name: A
+  name: A
+brokers:
+- auth_password: global_borker_1_password
+  auth_username: global_borker_1_user
+  url: https://global_borker_1.example.com
+  name: global_broker_1
+  service_instances:
+  - name: global_instance_1
+    plan: free
+user_provided_services:
+- credentials:
+    url: http://global_user_provided_instance_1.example.com
+  name: global_user_provided_instance_1

@@ -1,0 +1,12 @@
+[run]
+source = apployer/
+
+[report]
+exclude_lines = def __repr__
+# TODO set 100
+fail_under = 80
+
+# we won't work on those files and they will be eventually obsolete
+omit =
+        apployer/fetcher/bastion_utilities.py, apployer/fetcher/bastion_utilities.py
+        apployer/fetcher/bastion_utilities.py, apployer/fetcher/cdh_utilities.py

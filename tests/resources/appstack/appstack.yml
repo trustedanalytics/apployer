@@ -1,0 +1,81 @@
+apps:
+
+- name: A
+
+- name: B
+  user_provided_services:
+  - name: B_instance
+    credentials:
+      url: https://b.example.com
+  push_options:
+    params: '--no-start'
+    post_command: 'curl https://b.example.com'
+
+- name: C
+  artifact_name: X
+  user_provided_services:
+  - name: C_instance
+    credentials:
+      url: https://c.example.com
+
+- name: D
+  user_provided_services:
+  - name: D_instance
+    credentials:
+      url: https://d.example.com
+
+- name: E
+  broker_config:
+    name: E_broker
+    url: https://e.example.com
+    auth_username: E_user
+    auth_password: E_password
+    service_instances:
+    - name: E_instance_1
+      plan: free
+
+- name: F
+  user_provided_services:
+  - name: F_instance
+    credentials:
+      url: https://f.example.com
+
+- name: G
+  broker_config:
+    name: G_broker
+    url: https://g.example.com
+    auth_username: G_user
+    auth_password: G_password
+    service_instances:
+    - name: G_instance_1
+      plan: free
+    - name: G_instance_2
+      plan: free
+    - name: G_instance_3
+      plan: free
+
+- name: H
+  broker_config:
+    name: H_broker
+    url: https://h.example.com
+    auth_username: H_user
+    auth_password: H_password
+    service_instances:
+    - name: H_instance_1
+      plan: free
+    - name: H_instance_2
+      plan: free
+
+user_provided_services:
+- name: global_user_provided_instance_1
+  credentials:
+    url: http://global_user_provided_instance_1.example.com
+
+brokers:
+- name: global_broker_1
+  url: https://global_borker_1.example.com
+  auth_username: global_borker_1_user
+  auth_password: global_borker_1_password
+  service_instances:
+  - name: global_instance_1
+    plan: free

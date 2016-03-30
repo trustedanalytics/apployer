@@ -1,0 +1,5 @@
+---
+applications:
+- name: F
+  services:
+  - G_instance_3

@@ -1,0 +1,268 @@
+############################## VARIABLES FOR MANUAL CHANGE ##################################
+
+# Maximum timeout for pushing app to cloud foundry in seconds, (0-180)
+timeout: 180
+
+# HTTP proxy in form of JVM parameters
+# If HTTP(s) proxy will not be use you MUST leave this value in form of empty string ('')
+# IMPORTANT: it is essential to set http.nonProxyHosts variable to domain
+# which applications and services reside in. More information on proxy syntax can be
+# found at: http://docs.oracle.com/javase/6/docs/technotes/guides/net/proxies.html
+# example:
+# java_http_proxy: '-Dhttp.proxyHost=proxy.example.com -Dhttp.proxyPort=8080 -Dhttps.proxyHost=proxy.example.com -Dhttps.proxyPort=8080 -Dhttp.nonProxyHosts=localhost|127.*|[::1]|*.apps.example.com'
+java_http_proxy: ''
+
+# Kerberos realm name (the default deployment value is 'CLOUDERA')
+kerberos_realm: 'CLOUDERA'
+
+# name of the Cloudera CDH cluster
+CDH_cluster_name: CDH-cluster
+
+# username of the Cloud Foundry admin
+cf_admin_username: admin
+
+# version of CF CLI compatiple with the platform
+cf_cli_version: 6.12.4
+
+# HDFS nameservice name used in cdh-broker (e.g. nameservice1)
+hdfs_nameservice_for_cdh_broker: nameservice1
+
+# nats topic for messages about service creation
+nats_service_creation_topic: platform.service-creation
+
+# nats topic for messages from Data Catalog
+nats_data_catalog_topic: platform.data-catalog
+
+#username for the CF nats service
+nats_username: nats
+
+# username for the CloudFoundry gorouter service
+router_username: router
+
+# username that hdfs-broker is using
+hdfs_username: cf
+
+# username that hdfs-broker is using in Kerberos
+kerberos_username: cf
+
+# password that hdfs-broker is using in Kerberos
+kerberos_password: cf1
+
+# generic cog icon used by some brokers
+generic_broker_icon: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAMAAAANIilAAAACN1BMVEUAAAD///9WX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3R3YQTsAAAAvHRSTlMAAAECAwQGBwgJCgsMDQ4PEBESExQVFhcYGRocHR4gJCcoKSssLS4vMTM0NTY3ODk6PD9BQkNERUZHSElLTE1OT1BRUlNWV1pbXV5fYmNkZ2hpa2xtcnN0dnd4eXp7fH1+gIGChIWGh4iKjI6QkZKUlZaXmJ2goqSlp6mrrK2vsLGys7S1tre4vL2+v8DBwsPExcbHyMnKzM/R09TV1tfZ29ze3+Dh4uTn6Onq6+zt7/Dx8vP19vf5+vz9/jdVeyQAAAM9SURBVHhe5dThUxRlHMDxX3vrqUQSFmGWFoEXqFZFpVhpBaUVJkqGqUFogSilKCkRFFhUQUlnQKVGQEAeJVjHwXH3/eNy92af2Znbe24dXzV9X+2++Mzs/n67j9xxG/2XsWhavqM1PANLk5+/vUFU4gff2zyLirO3go2aOQDiU5PXAXjOP879DGBwf5EpIjnl3XDMNy4YAYYfc26fjsFev/hOyx4NOPbZGAyt9Iu7IPG6OO2Mw3Ce+MR7gDeVrYpDWNlsePV1+FDZ3QnozxG/uBHGVqincFtZt+0+PTZnoNKx+4BeNauGJIt7tbgCJpxBH7BsUFIZLQBLJTp8HJqd6zB0KXsGmINWHR6ArQ7+CHa6bX8x/KzD0/CgGrX6LM1z2JOLMqvDUTAcXARfpmwHqclNgg4D4hSIEjFFJNjpTG5cj+OwSumLMB8+Vd0L9FhW/iCpwxNQqvBJnDpMywYTXMuMg21AtcKPnh5acFnZCIMZ8ZofgL48cbUsVH16qD1l5QicyISfiQAtpmQq8BtUeGPz/STMvyqZq4SZZZ547ffAaLHG5k7Bu+KFyyPAJ7mi6TxE8jywcSQBi/tF11HgFUnH+V8AU5t11GgGzkg6fmQM6Futs4UXgAvBdLzjH0jUGxp616E5oDdH0vDhJNyo8DIbG18KrS8qr/10AaDVlDR8HBgr8rL3X0PF78+LpOG3gH7P1w3+iGq8dqWk45JF+0/16izwy583/rraU7/F+9z+GoaXe9o3cB2FnngDxB+2wZN1dU+4bfE8fGdqcRN8bIF7vgX4plDZ3FGIrBEtvgT2kvqwGwm4vuPEU6LHc3C3iGyGRFsH4OyjBnhHsmCIyc0OwgmRTvggBcqsHRjZ8ZKROl4aRbqhyQb5EzCeL9lwFKwhbYdE+3ngBQsYPRALSVY8Ai+KSOASdsP2wBqA1yQ7boEuuVlBGOArezdVwCnxgcsg+bglAtsOHSizQek8XAz6wTIAEwXi6oFpmC4UXzgUh8trRbV+DGJl4g9LLRCplFTG7llgl/jF0gxw5dj20pKt7/0KJPeJfyy1cVz9/bLcCpbQAKrOdeIfp9p08qcozA42PiTiE99G/0f8L79Trz+R1ZvwAAAAAElFTkSuQmCC
+
+# Latest version of wssb
+wssb_version: 0.4.1
+
+# username for basic auth in Application Broker
+application_broker_user: admin
+
+# password that Application Broker will use for basic auth handling
+application_broker_pass: admin
+
+# UAA client password for atk. Use quoted empty string to leave it unset.
+atk_client_pass: "''"
+
+# ATK client name
+atk_client_name: 'atk-client'
+
+# username that the CDH broker will use
+cdh_broker_user: admin
+
+# password that the CDH broker will use
+cdh_broker_user_pass: admin
+
+# username for the docker broker (set in bosh docker deployment YAML file)
+docker_broker_user: containers
+
+# password for the docker broker (set in bosh docker deployment YAML file)
+docker_broker_user_pass: containers
+
+# username that the Gearpump broker will use
+gearpump_broker_user: user
+
+# password that the Gearpump broker will use
+gearpump_broker_user_pass: awhile-scary-melting-globe
+
+# organization and space, where core TAP applications will be pushed
+core_org_name: seedorg
+core_space_name: seedspace
+
+# gearpump credentials and settings
+gearpump_broker_user_pass: randompassword
+
+#gearpump's dashboard name
+gearpump_ui_name: "gearpump-dashboard"
+
+# TODO
+gearpump_broker_znode_in_zookeeper: /org/intel/gearpumpbroker/metadata
+
+# username that the H2O broker will use
+h2o_broker_user: user
+
+# password that the H2O broker will use
+h2o_broker_user_pass: organized-widely-football-dance
+
+# username that the HBASE broker will use
+hbase_broker_user: user
+
+# password that the HBASE broker will use
+hbase_broker_user_pass: democrats-midst-writing-tender
+
+# TODO
+hbase_broker_znode_in_zookeeper: /org/intel/hbasebroker/metadata
+
+# directory in the HDFS tree that the HDFS broker will use
+hdfs_broker_folder_on_hdfs: /org/intel/hdfsbroker
+
+# username that the HDFS broker will use
+hdfs_broker_user: user
+
+# password that the HDFS broker will use
+hdfs_broker_user_pass: calmed-jumps-jerk-apologies
+
+# hdfs super user name - used by hdfs-auth-gateway in auth-gateway
+hdfs_super_user: authgateway
+
+# hgm super user name - used by group-mapping-auth-gateway in auth-gateway
+hgm_principal: hgm
+
+# username that the Kafka broker will use
+kafka_broker_user: admin
+
+# password that the Kafka broker will use
+kafka_broker_user_pass: admin
+
+authgateway_principals_suffix: /sys
+
+# service principal name defined for Sentry service
+sentry_principal: sentry
+
+# principal name on whose behalf Sentry provider connects to Sentry service
+sentry_superuser: hive
+
+# username that the SMTP broker will use
+smtp_broker_user: admin
+
+# password that the SMTP broker will use
+smtp_broker_user_pass: admin
+
+# username that the YARN broker will use
+yarm_broker_user: user
+
+# password that the YARN broker will use
+yarn_broker_user_pass: little-gold-bubbles-heavenly
+
+# username that the KERBEROS broker will use
+kerberos_broker_user: admin
+
+# password that the KERBEROS broker will use
+kerberos_broker_user_pass: little-silver-bubbles-heavenly
+
+# TODO
+yarn_broker_znode_in_zookeeper: /org/intel/yarnbroker/metadata
+
+# TODO
+zookeeper_broker_metadata: /org/intel/zookeeperbroker/metadata
+
+# username that the Zookeeper broker will use
+zookeeper_broker_user: user
+
+# password that the Zookeeper broker will use
+zookeeper_broker_user_pass: bother-collar-thumb-shut
+
+# TODO
+zookeeper_broker_userspace: /org/intel/zookeeperbroker/userspace
+
+# user that the all broker will use to create broker store
+broker_system_user: cf
+
+# password that the all broker will use to login
+broker_system_user_password: cf1
+
+### TO REMOVE after DPNG-2306 ###############
+external_tool_arcadia: "false"
+external_tool_hue: "true"
+external_tool_rstudio: "true"
+external_tool_gearpump: "true"
+external_tool_h2o: "false"
+#############################################
+
+########################## VARIABLES FILLED AUTOMATICALLY BY THE SCRIPT ############################
+
+# password of the Cloud Foundry admin
+cf_admin_password:
+
+# client password of the Cloud Foundry UAA admin
+cf_admin_client_password:
+
+# hostname of any h2o worker node, provide this value if other than cdh-worker-0
+h2o_node:
+
+# hostname of any Arcadia worker node, provide this value if other than cdh-worker-0
+arcadia_node:
+
+# hostname of Hue worker node
+hue_node:
+
+# apps domain of the Cloud Foundry deployment, can be checked in the bosh deployment YAML file
+apps_domain:
+
+# hostname of the CDH Manager host
+cloudera_manager_internal_host:
+
+# password for the developer-console client
+tap_console_password:
+
+# e-mail address that will be used to send invitations
+email_address:
+
+# h2o provisioner url (will be consumed by h2o broker)
+h2o_provisioner_host:
+h2o_provisioner_port:
+
+# output of the import_hadoop_conf.sh tool (https://github.com/trustedanalytics/hadoop-admin-tools) for three machines;
+# those will be JSON documents, they need to be in single quotes, e.g. '{"some_key": "some_value"}'
+import_hadoop_conf_hbase:
+import_hadoop_conf_hdfs:
+import_hadoop_conf_yarn:
+
+# *** set only for Kerberos-enabled deployment ***
+# hostname of the Kerberos Key Distribution Center, should be the same as CDH Manager machine
+kerberos_host: ''
+
+# hostnames of the CDH master nodes running zookeeper and kafka
+master_node_host_1:
+master_node_host_2:
+master_node_host_3:
+
+# hostname of the host serving as the HDFS namenode
+namenode_internal_host:
+
+# ip address of the nats machine. can be checked with `bosh vms`
+nats_ip:
+
+# run domain of the Cloud Foundry deployment, can be checked in the bosh deployment YAML file
+run_domain:
+
+# SMTPAuth password (e.g. for Amazon SES service).
+# To disable authentication set value to 'null' (single or double quotation are necessary).
+# For non empty value, it should be inside single and double quotation marks: '"example_password"'.
+smtp_pass:
+
+# SMTPAuth username (e.g. for Amazon SES service).
+# Rules for setting the field are the same as for smtp_pass.
+smtp_user:
+
+# SMTPAuth port (e.g. 465)
+smtp_port:
+
+# SMTPAuth host (e.g. email-smtp.us-west-2.amazonaws.com)
+smtp_host:
+
+# SMTPAuth protocol (smtp or smtps),
+# fill this value if your smtp protocol is other than standard (25, 465, 587, 2525)
+smtp_protocol:
+
+# also known as Hive URL. This value changes depending on presence of Arcadia and Kerberos
+thrift_server_url:

@@ -1,0 +1,8 @@
+---
+applications:
+- name: A
+  services:
+  - B_instance
+  - C_instance
+  - D_instance
+  - global_user_provided_instance_1

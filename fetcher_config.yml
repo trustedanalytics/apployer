@@ -1,0 +1,45 @@
+---
+# 'True' if script is running on OpenStack environment
+openstack_env: False
+
+# 'True' if environment uses Kerberos
+kerberos_used: False
+
+machines:
+ # access information for cdh-launcher
+ cdh-launcher:
+   # ip address or hostname
+   hostname:
+   # port for ssh connection (default 22)
+   hostport: 22
+   # username fo ssh connection
+   # if empty will be set to "centos" for openstack environmen or ec2-user otherwise
+   username:
+   # path to ssh key
+   key_filename: ~/.ssh/id_rsa
+   # password to ssh key if key is encrypted
+   key_password:
+
+ # access information for cf-bastion
+ cf-bastion:
+   # ip address or hostname
+   hostname:
+   # port for ssh connection (default: 22)
+   hostport: 22
+   # username fo ssh connection (default: ubuntu)
+   username: ubuntu
+   # path to ssh key
+   key_filename: ~/.ssh/id_rsa
+   # password to ssh key if key is encrypted
+   key_password:
+   # optional (used default values)
+   path_to_cf_tiny_yml:
+   path_to_docker_vpc_yml:
+
+ cdh-manager:
+   user: admin
+   password: admin
+   # 'True' if cdh-manager machine is not accessible from machine on which script is running, else 'False'
+   sshtunnel_required: True
+   # optional if configuration files on cdh-launcher exist
+   ip: 

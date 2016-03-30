@@ -1,0 +1,5 @@
+---
+applications:
+- name: G
+  services:
+  - H_instance_2

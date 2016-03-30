@@ -1,0 +1,6 @@
+---
+applications:
+- name: B
+  services:
+  - E_instance_1
+  - global_instance_1

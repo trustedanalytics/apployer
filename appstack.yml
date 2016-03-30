@@ -1,0 +1,579 @@
+domain: '{{ apps_domain }}'
+
+buildpacks:
+- tap-java-buildpack
+
+apps:
+
+- name: auth-gateway
+  order: 0
+  push_options:
+    post_command: curl -X PUT -v auth-gateway.{{ run_domain }}/organizations/$(cf org {{ core_org_name }} --guid)
+  app_properties:
+    buildpack: java_buildpack
+    env:
+      HDFS_SUPERUSER: '{{ hdfs_super_user }}{{ authgateway_principals_suffix if kerberos_host != '' }}'
+      HDFS_KEYTAB: '{{ auth_gateway_keytab_value }}'
+      HGM_PRINCIPAL: '{{ hgm_principal }}{{ authgateway_principals_suffix if kerberos_host != '' }}'
+      HGM_PRINCIPAL_KEYTAB: '{{ hgm_keytab_value }}'
+      HGM_URL: '{{ hgm_adress }}'
+      HGM_USERNAME: '{{ hgm_username }}'
+      HGM_PASSWORD: '{{ hgm_password }}'
+      SENTRY_KEYTAB: '{{ sentry_keytab_value }}'
+      SENTRY_ADDRESS: '{{ sentry_address }}'
+      SENTRY_PORT: '{{ sentry_port }}'
+      SENTRY_PRINCIPAL: '{{ sentry_principal }}'
+      SENTRY_SUPERUSER: '{{ sentry_superuser }}{{ authgateway_principals_suffix if kerberos_host != '' }}'
+      SPRING_PROFILES_ACTIVE: '{{ auth_gateway_profile }}'
+      KRB_KDC: "{{ kerberos_host }}"
+      KRB_PASSWORD: "{{ kerberos_password if kerberos_host != '' }}"
+      KRB_REALM: "{{ kerberos_realm if kerberos_host != '' }}"
+      KRB_USER: "{{ kerberos_username }}"
+      HADOOP_PROVIDED_ZIP: '{{ import_hadoop_conf_hdfs }}'
+      ZK_CLUSTER_URL: '{{ master_node_host_1 }}:2181,{{ master_node_host_2 }}:2181,{{ master_node_host_3 }}:2181'
+
+- name: auth-proxy
+  order: 1
+  app_properties:
+    env:
+      NODE_TLS_REJECT_UNAUTHORIZED: 0
+
+# BROKERS
+
+- name: application-broker
+  app_properties:
+    env:
+      AUTH_USER: '{{ application_broker_user }}'
+      AUTH_PASS: '{{ application_broker_pass }}'
+      CF_API: http://api.{{ run_domain }}
+      CLIENT_ID: tap_console
+      CLIENT_SECRET: '{{ tap_console_password }}'
+      TOKEN_URL: http://uaa.{{ run_domain }}/oauth/token
+
+- name: gearpump-broker
+  app_properties:
+    env:
+      BASE_GUID: 1ebaebc7-e344-4cb9-ad18-e29901386e04
+      display_name: GearPump
+      description: Modern big data real-time streaming engine
+      GEARPUMP_UI_ORG: '{{ core_org_name }}'
+      GEARPUMP_UI_SPACE: '{{ core_space_name }}'
+      GEARPUMP_UI_NAME: '{{ gearpump_ui_name }}'
+      IMAGE_URL: data:image/png;base64,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
+      SPRING_PROFILES_ACTIVE: cloud
+      TAGS: gearpump
+      USER_PASSWORD: '{{ gearpump_broker_user_pass }}'
+  broker_config:
+    name: gearpump
+    url: https://gearpump-broker.{{ apps_domain }}
+    auth_username: '{{ gearpump_broker_user }}'
+    auth_password: '{{ gearpump_broker_user_pass }}'
+
+- name: h2o-broker
+  app_properties:
+    env:
+      USER_PASSWORD: '{{ h2o_broker_user_pass }}'
+  broker_config:
+    name: h2o
+    url: https://h2o-broker.{{ apps_domain }}
+    auth_username: '{{ h2o_broker_user }}'
+    auth_password: '{{ h2o_broker_user_pass }}'
+
+- name: hdfs-broker
+  app_properties:
+    env:
+      USER_PASSWORD: '{{ hdfs_broker_user_pass }}'
+      HADOOP_PROVIDED_ZIP: '{{ import_hadoop_conf_hdfs }}'
+      SPRING_PROFILES_ACTIVE: cloud,{{ 'secure' if kerberos_host != '' else 'insecure' }}
+      HDFS_KEYTAB: '{{ hdfs_keytab_value }}'
+      SYSTEM_USER: '{{ broker_system_user }}'
+      SYSTEM_USER_PASSWORD: '{{ broker_system_user_password }}'
+  broker_config:
+    name: hdfs
+    url: https://hdfs-broker.{{ apps_domain }}
+    auth_username: '{{ hdfs_broker_user }}'
+    auth_password: '{{ hdfs_broker_user_pass }}'
+    service_instances:
+    - name: hdfs-instance
+      plan: multitenant
+    - name: hdfs-for-atk
+      plan: shared
+    - name: hdfs-gearpump
+      plan: shared
+    - name: hdfs-instance-bare
+      plan: shared
+
+- name: hbase-broker
+  app_properties:
+    env:
+      USER_PASSWORD: '{{ hbase_broker_user_pass }}'
+      KRB_KDC_HOST: "{{ kerberos_host }}"
+      KRB_REALM: "{{ kerberos_realm if kerberos_host != '' }}"
+      HADOOP_PROVIDED_ZIP: '{{ import_hadoop_conf_hbase }}'
+      SYSTEM_USER: "{{ broker_system_user }}"
+      SYSTEM_USER_PASSWORD: "{{ broker_system_user_password }}"
+  broker_config:
+    name: hbase
+    url: http://hbase-broker.{{ apps_domain }}
+    auth_username: '{{ hbase_broker_user }}'
+    auth_password: '{{ hbase_broker_user_pass }}'
+    service_instances:
+    - name: hbase-for-atk
+      plan: shared
+
+- name: zookeeper-broker
+  app_properties:
+    env:
+      USER_PASSWORD: '{{ zookeeper_broker_user_pass }}'
+      SYSTEM_USER: "{{ broker_system_user }}"
+      SYSTEM_USER_PASSWORD: "{{ broker_system_user_password }}"
+      KRB_KDC_HOST: "{{ kerberos_host }}"
+      KRB_REALM: "{{ kerberos_realm if kerberos_host != '' }}"
+      ZK_CLUSTER_URL: '{{ master_node_host_1 }}:2181,{{ master_node_host_2 }}:2181,{{ master_node_host_3 }}:2181'
+      ZK_BRK_ROOT: '{{ zookeeper_broker_userspace }}'
+  broker_config:
+    name: zookeeper
+    url: http://zookeeper-broker.{{ apps_domain }}
+    auth_username: '{{ zookeeper_broker_user }}'
+    auth_password: '{{ zookeeper_broker_user_pass }}'
+    service_instances:
+    - name: zookeeper-instance-bare
+      plan: bare
+    - name: zookeeper-for-atk
+      plan: shared
+    - name: zookeeper-for-h2o-broker
+      plan: shared
+    - name: zookeeper-for-hbase
+      plan: shared
+    - name: zookeeper-for-hdfs
+      plan: shared
+    - name: zookeeper-for-yarn
+      plan: shared
+    - name: zookeeper-gearpump
+      plan: shared
+
+- name: yarn-broker
+  app_properties:
+    env:
+      USER_PASSWORD: '{{ yarn_broker_user_pass }}'
+      SYSTEM_USER: "{{ broker_system_user }}"
+      SYSTEM_USER_PASSWORD: "{{ broker_system_user_password }}"
+      KRB_KDC_HOST: "{{ kerberos_host }}"
+      KRB_REALM: "{{ kerberos_realm if kerberos_host != '' }}"
+      HADOOP_PROVIDED_ZIP: '{{ import_hadoop_conf_yarn }}'
+  broker_config:
+    name: yarn
+    url: http://yarn-broker.{{ apps_domain }}
+    auth_username: '{{ yarm_broker_user }}'
+    auth_password: '{{ yarn_broker_user_pass }}'
+    service_instances:
+    - name: yarn-for-atk
+      plan: bare
+    - name: yarn-for-h2o-broker
+      plan: bare
+    - name: yarn-gearpump
+      plan: bare
+
+# APPS IN APPLICATION BROKER
+
+- name: gateway
+  register_in: application-broker
+  app_properties:
+    env:
+      description: Provides proxy functionality
+      image_url: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAMAAAANIilAAAAAilBMVEUAAAD///9WX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3S/D72oAAAALXRSTlMAAAEPFRwhIiQ3QUhJTltgYWRpbG1zeHp/gIOIkJOXmMPJz9PZ29zj5Ovx+v0SGf14AAABQUlEQVR4Xu3W607CQBRFYaRTBRQUFEDuBeQ+7/96jjVkZ1hth6QhxsD8JV8mp4e928pDifO/cSXzfFo7zv7l7/Ad1weX40Hdx429HV2KR3bf8HBirbSPaa1NPGyW0sCwS+PPLE1Me74qs3a6H8J9Z78MVxX/6F4x7jm7jrEqaWBYYGlgWGBoYVhgaGFaYun3LPwhm4crT1unO8QdZ7ePoVTVfrWwbC0QSWlhWGBoYVhgamFYYOjXE36DLcY7a4+tE24drd0VYV7c1sxtXV3igV13VfEm70+yiQuwotFlMLqKBTFiJYxQXSGSZhUqg5XJw2n9DvNraJjWbiZWdXuYpQ0sC0xNHC1SSwy9iM5xlDg7Cb9uJk4nkY9TO62GcXWaag/PZYmp5x5uHmSBoQ9Nf+aXmayPqWfPN/Yddsclzi3ib578VYn8W6zCAAAAAElFTkSuQmCC
+
+- name: atk
+  register_in: application-broker
+  app_properties:
+    buildpack: java_buildpack
+    env:
+      description: TAP Analytics Toolkit
+      display_name: TAP Analytics Toolkit
+      image_url: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAMAAAANIilAAAACN1BMVEUAAAD///9WX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3R3YQTsAAAAvHRSTlMAAAECAwQGBwgJCgsMDQ4PEBESExQVFhcYGRocHR4gJCcoKSssLS4vMTM0NTY3ODk6PD9BQkNERUZHSElLTE1OT1BRUlNWV1pbXV5fYmNkZ2hpa2xtcnN0dnd4eXp7fH1+gIGChIWGh4iKjI6QkZKUlZaXmJ2goqSlp6mrrK2vsLGys7S1tre4vL2+v8DBwsPExcbHyMnKzM/R09TV1tfZ29ze3+Dh4uTn6Onq6+zt7/Dx8vP19vf5+vz9/jdVeyQAAAM9SURBVHhe5dThUxRlHMDxX3vrqUQSFmGWFoEXqFZFpVhpBaUVJkqGqUFogSilKCkRFFhUQUlnQKVGQEAeJVjHwXH3/eNy92af2Znbe24dXzV9X+2++Mzs/n67j9xxG/2XsWhavqM1PANLk5+/vUFU4gff2zyLirO3go2aOQDiU5PXAXjOP879DGBwf5EpIjnl3XDMNy4YAYYfc26fjsFev/hOyx4NOPbZGAyt9Iu7IPG6OO2Mw3Ce+MR7gDeVrYpDWNlsePV1+FDZ3QnozxG/uBHGVqincFtZt+0+PTZnoNKx+4BeNauGJIt7tbgCJpxBH7BsUFIZLQBLJTp8HJqd6zB0KXsGmINWHR6ArQ7+CHa6bX8x/KzD0/CgGrX6LM1z2JOLMqvDUTAcXARfpmwHqclNgg4D4hSIEjFFJNjpTG5cj+OwSumLMB8+Vd0L9FhW/iCpwxNQqvBJnDpMywYTXMuMg21AtcKPnh5acFnZCIMZ8ZofgL48cbUsVH16qD1l5QicyISfiQAtpmQq8BtUeGPz/STMvyqZq4SZZZ547ffAaLHG5k7Bu+KFyyPAJ7mi6TxE8jywcSQBi/tF11HgFUnH+V8AU5t11GgGzkg6fmQM6Futs4UXgAvBdLzjH0jUGxp616E5oDdH0vDhJNyo8DIbG18KrS8qr/10AaDVlDR8HBgr8rL3X0PF78+LpOG3gH7P1w3+iGq8dqWk45JF+0/16izwy583/rraU7/F+9z+GoaXe9o3cB2FnngDxB+2wZN1dU+4bfE8fGdqcRN8bIF7vgX4plDZ3FGIrBEtvgT2kvqwGwm4vuPEU6LHc3C3iGyGRFsH4OyjBnhHsmCIyc0OwgmRTvggBcqsHRjZ8ZKROl4aRbqhyQb5EzCeL9lwFKwhbYdE+3ngBQsYPRALSVY8Ai+KSOASdsP2wBqA1yQ7boEuuVlBGOArezdVwCnxgcsg+bglAtsOHSizQek8XAz6wTIAEwXi6oFpmC4UXzgUh8trRbV+DGJl4g9LLRCplFTG7llgl/jF0gxw5dj20pKt7/0KJPeJfyy1cVz9/bLcCpbQAKrOdeIfp9p08qcozA42PiTiE99G/0f8L79Trz+R1ZvwAAAAAElFTkSuQmCC
+      CC_URI: api.{{ run_domain }}
+      UAA_CLIENT_NAME: '{{ atk_client_name }}'
+      UAA_CLIENT_PASSWORD: '{{ atk_client_pass }}'
+      UAA_URI: uaa.{{ run_domain }}
+      KEYTAB_VCAP: '{{ vcap_keytab_value }}'
+      KRB5_BASE64: '{{ krb5_base64 }}'
+
+- name: scoring-engine
+  register_in: application-broker
+  push_options:
+    params: --no-start
+  app_properties:
+    env:
+      description: Scoring engine for TAP Analytics Toolkit models
+      display_name: TAP Scoring Engine
+
+- name: gearpump-dashboard
+  register_in: application-broker
+  push_options:
+    params: --no-start
+  app_properties:
+    env:
+      description: Dashboard for managing GearPump service
+      display_name: GearPump Dashboard
+      username: username
+      password: password
+      GEARPUMP_MASTERS: localhost:9999
+
+# APPS
+
+- name: metrics-provider
+  user_provided_services:
+  - name: metrics-provider
+    credentials:
+      host: http://metrics-provider.{{ apps_domain }}
+
+- name: hdfs-uploader
+  artifact_name: uploader
+  app_properties:
+    env:
+      HDFS_USER: '{{ hdfs_username }}'
+      KERBEROS_USER: "{{ kerberos_username if kerberos_host != '' }}"
+      KERBEROS_PASS: "{{ kerberos_password if kerberos_host != '' }}"
+  user_provided_services:
+  - name: hdfs-uploader
+    credentials:
+      host: http://hdfs-uploader.{{ apps_domain }}
+
+- name: latest-events-service
+  user_provided_services:
+  - name: latest-events-service
+    credentials:
+      host: http://latest-events-service.{{ apps_domain }}
+
+- name: console
+
+- name: hdfs-downloader
+  artifact_name: downloader
+  app_properties:
+    env:
+      HDFS_USER: '{{ hdfs_username }}'
+      KERBEROS_USER: "{{ kerberos_username if kerberos_host != '' }}"
+      KERBEROS_PASS: "{{ kerberos_password if kerberos_host != '' }}"
+      JAVA_OPTS: '{{ java_http_proxy }}'
+  user_provided_services:
+  - name: downloader
+    credentials:
+      url: http://hdfs-downloader.{{ apps_domain }}
+
+- name: das
+  artifact_name: data-acquisition
+  app_properties:
+  user_provided_services:
+  - name: dataaquisitionservice
+    credentials:
+      host: http://das.{{ apps_domain }}
+
+
+- name: data-catalog
+  user_provided_services:
+  - name: datacatalog
+    credentials:
+      host: http://data-catalog.{{ apps_domain }}
+
+- name: dataset-publisher
+  user_provided_services:
+  - name: datacatalogexport
+    credentials:
+      host: http://hive.{{ apps_domain }}
+
+- name: router-metrics-provider
+  user_provided_services:
+  - name: router-metrics-provider
+    credentials:
+      host: http://router-metrics-provider.{{ apps_domain }}
+
+- name: service-catalog
+  user_provided_services:
+  - name: servicecatalog
+    credentials:
+      host: http://service-catalog.{{ apps_domain }}
+
+- name: service-exposer
+  user_provided_services:
+  - name: service-exposer
+    credentials:
+      host: http://service-exposer.{{ apps_domain }}
+
+- name: app-launcher-helper
+  app_properties:
+    env:
+      API_URL: http://api.{{ run_domain }}
+      TOKEN_KEY_URL: http://uaa.{{ run_domain }}/token_key
+  user_provided_services:
+  - name: app-launcher-helper
+    credentials:
+      host: http://app-launcher-helper.{{ apps_domain }}
+
+- name: metadataparser
+  artifact_name: metadata-parser
+  app_properties:
+    env:
+      HDFS_USER: '{{ hdfs_username }}'
+      KERBEROS_USER: "{{ kerberos_username if kerberos_host != '' }}"
+      KERBEROS_PASS: "{{ kerberos_password if kerberos_host != '' }}"
+  user_provided_services:
+  - name: metadataparser
+    credentials:
+      url: http://metadata.{{ apps_domain }}
+
+- name: user-management
+  user_provided_services:
+  - name: user-management
+    credentials:
+      host: http://user-management.{{ apps_domain }}
+
+- name: platform-operations
+  user_provided_services:
+  - name: platform-operations
+    credentials:
+      host: http://platform-operations.{{ apps_domain }}
+
+- name: model-catalog
+  user_provided_services:
+  - name: model-catalog
+    credentials:
+      host: http://model-catalog.{{ apps_domain }}
+
+- name: platform-context
+  app_properties:
+    env:
+      CF_CLI_VERSION: '{{ cf_cli_version }}'
+  user_provided_services:
+  - name: platformcontext
+    credentials:
+      host: http://platform-context.{{ apps_domain }}
+
+# WSSB brokers
+
+- name: cdh-broker
+  artifact_name: wssb
+  app_properties:
+    buildpack: go_buildpack
+    memory: 64M
+    disk_quota: 64M
+    env:
+      BASE_GUID: f5652e9e-d6ca-11e4-b773-080027d9ee1d
+      IMAGE_URL: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAMAAAANIilAAAABtlBMVEUAAAD///9WX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3QDnxLEAAAAkXRSTlMAACDwEHAwsJADAfn3HP2UEuwU3uf+1QRG+h82E5ZPWlgehs6lIYTU0C5EFgIYrSxNpgkyBTWfHS0Ic5nvIkq5fzGeJPvL9j2FqKz1ZMeyiEc/NCgNv9l9q0KDaKSAzNzgtOQ3odtp6+2jrw+HbmJZPvImS7vjQNaN09d4GugvvZeM0mVQUV8Mp1zptToZBwY81vQG+QAAAb5JREFUeF7t11Vv41AQQOHZxM7WQYYyMzMtMzMzMzMz8/nH60apFCW2c9192ao5r1efRrrSPIws+4cWO5bi2tccjEFy9Uy/FOWM+/ftXzmcIl8goinj+JYE+YKnz2wAODeuiBu98wPrxw2R6ew1YNNmJXwTILZz4/Z0t+TrScKKGgX8KAwXGwyRzIjMJ+tfQnr2WFOdM850wilNittLrvCutU54FQQnpbQL5HmHYY/XQUQsmtSz2R1bg8ARwxa3wpDYFtoGRGzw9MlqGBX7/LuBPZY41ApwXpz0ADz2W+ADT4FDh6PiVCgIRy3wBFQf90uZTsDbUjyVgiYpWyN0leIqOCvlqwVvKe6EBgXsscQBCC0YA9piwxVsDNb2LhRfunwlEZ4QHYhdbRaZ8l431Y02FXwrcNsv7XdEv+u5d//Bwzrx5R6qlqvgxBPJpXtNMvbsuRv8gp4CLC0DbvArfIVYf23iXCo4zlAh7hg2cY2maW9UsHS1FeC+d+9dfdiHVEtz/OOnOfx59Et6xBWWr9+A76IDyfqouMOSGfzxU+SXpo3JXL89faaK9i7NlazgCu72lO+PNVbs/8BL8a76C+JYIR6fsaXEAAAAAElFTkSuQmCC
+      SERVICE_NAME: cdh
+      SERVICE_PLAN_NAME: shared
+      TAGS: simple,shared
+      CREDENTIALS: '{"hdfs_root": "hdfs://{{ hdfs_nameservice_for_cdh_broker }}/user/atkuser", "zk_host": "{{ master_node_host_1 }}", "zk_port": "2181", "spark_max_memory": "2163212288", "resource_manager" : "http://{{ namenode_internal_host }}:8088", "yarn_config": "http://{{ cloudera_manager_internal_host }}:7180/api/v9/clusters/{{ CDH_cluster_name }}/services/YARN/clientConfig", "hdfs_config": "http://{{ cloudera_manager_internal_host }}:7180/api/v9/clusters/{{ CDH_cluster_name }}/services/HDFS/clientConfig", "hbase_config": "http://{{ cloudera_manager_internal_host }}:7180/api/v9/clusters/{{ CDH_cluster_name }}/services/HBASE/clientConfig"}'
+      VERSION: '{{ wssb_version }}'
+  broker_config:
+    name: cdh
+    url: http://cdh-broker.{{ apps_domain }}
+    auth_username: '{{ cdh_broker_user }}'
+    auth_password: '{{ cdh_broker_user_pass }}'
+
+- name: kafka-broker
+  artifact_name: wssb
+  app_properties:
+    buildpack: go_buildpack
+    memory: 64M
+    disk_quota: 64M
+    env:
+      BASE_GUID: 767a7f07-a517-4a28-830f-bb7563818ed4
+      SERVICE_NAME: kafka
+      SERVICE_PLAN_NAME: shared
+      TAGS: kafka,distributed,real-time,messaging
+      CREDENTIALS: '{"uri": "{{ master_node_host_1 }}:9092,{{ master_node_host_2 }}:9092,{{ master_node_host_3 }}:9092", "zookeeperUri": "{{ master_node_host_1 }}:2181,{{ master_node_host_2 }}:2181,{{ master_node_host_3 }}:2181/kafka"}'
+      IMAGE_URL: '{{ generic_broker_icon }}'
+      VERSION: '{{ wssb_version }}'
+  broker_config:
+    name: kafka
+    url: http://kafka-broker.{{ apps_domain }}
+    auth_username: '{{ kafka_broker_user }}'
+    auth_password: '{{ kafka_broker_user_pass }}'
+    service_instances:
+    - name: kafka
+      plan: shared
+    - name: gateway-kafka
+      plan: shared
+
+- name: kerberos-broker
+  artifact_name: wssb
+  app_properties:
+    buildpack: go_buildpack
+    memory: 64M
+    disk_quota: 64M
+    env:
+      BASE_GUID: d47a4b46-b1cd-423c-a8e8-25842ece5a5a
+      SERVICE_NAME: kerberos
+      SERVICE_PLAN_NAME: shared
+      TAGS: kerberos
+      service_broker_names: kerberos
+      CREDENTIALS: '{"kdc": "{{ kerberos_host }}", "krealm": "{{ kerberos_realm if kerberos_host != "" }}", "cacert": "{{ kerberos_cacert }}", "enabled": {{ "true" if kerberos_host != "" else "false"}} }'
+      VERSION: '{{ wssb_version }}'
+  broker_config:
+    name: kerberos
+    url: http://kerberos-broker.{{ apps_domain }}
+    auth_username: '{{ kerberos_broker_user }}'
+    auth_password: '{{ kerberos_broker_user_pass }}'
+    service_instances:
+    - name: kerberos-instance
+      plan: shared
+
+- name: smtp-broker
+  artifact_name: wssb
+  app_properties:
+    buildpack: go_buildpack
+    memory: 64M
+    disk_quota: 64M
+    env:
+      BASE_GUID: 3c8b9b2e-dde8-4d5a-a6ba-8940efb705e5
+      IMAGE_URL: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAMAAAANIilAAAAAnFBMVEUAAAD///9WX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3QkvAwDAAAAM3RSTlMAAAEDCg0PEBEVGBkcJCkqLTA8PUhOT1VbaWpvcnN4iJKXpb7AydPU3OLk6+/w8fr7/f7NwBdQAAABKElEQVR4Xu3W2U7DMBSEYdOyFcy+tQUCFCiBsoXz/u+GklNl5IxgWoJAiP73n6zjqwlLLfpZvMD21X4bP6/N3UGNn8Lc7X0fjoezut5xE8f85WhGOy76DXxj5lpbs2InxVsP0Mpalr5MWtgEQ2t7HghDCzsIhKG1Zax1vIMlLHTMYRlDa8sYWljGrNkqDM1WYWi2EkOT1dj141TDnsIJPDCrNKxdL0sM+1pqWGjGZPP96m63b8Mr1xqflTZOf620RT90XEucuQ2u7ysbEk2YrWu3tV75DMO6dgt9u/ohhq21W9KMYaFPAoImDEuRJux2vEmENWO3PQdCE5bW9aXrBMOqLiqd4M4IVuvJdoJDdwSr9GS3eXN3HUC00XpWtF1Df3QB/pexvsDvDaq8MT/tZlkAAAAASUVORK5CYII=
+      SERVICE_NAME: smtp
+      SERVICE_PLAN_NAME: shared
+      TAGS: simple,shared
+      CREDENTIALS: '{"username": {{ smtp_user }}, "password": {{ smtp_pass }}, "port": "{{ smtp_port }}", "host": "{{ smtp_host }}", "protocol": "{{ smtp_protocol }}"}'
+      VERSION: '{{ wssb_version }}'
+  broker_config:
+    name: smtp
+    url: http://smtp-broker.{{ apps_domain }}
+    auth_username: '{{ smtp_broker_user }}'
+    auth_password: '{{ smtp_broker_user_pass }}'
+    service_instances:
+    - name: smtp
+      plan: shared
+
+- name: zookeeper-wssb-broker
+  artifact_name: wssb
+  app_properties:
+    buildpack: go_buildpack
+    memory: 64M
+    disk_quota: 64M
+    env:
+      BASE_GUID: 43b8606c-8bb8-4f6c-bb20-4938687a0fe8
+      IMAGE_URL: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAMAAAANIilAAAABJlBMVEX///8AAABWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3QsLCbWAAAAYXRSTlMAAJDwsKBAcFBgWqqb4MTQ7Oqo0oDxuci3w3G6nbW+1kLu+WPj1Gd0BRGel47A/NxeIgQ1b+VsLwIQSYW/9cX7tnlhmdP++gpBffPts3g9CQMybufZn2UpASNf2PjGik8VB3b+IgAAAPxJREFUeF7t1dVOxEAYhmGm0IWqrLu74e7u7s7c/02w+ek2U0522pSQwrwH0/TgSSZz8g15GoJ4bI9HkA9wdqyf4RyrgiDkkdg7dXfXHkHD8PUJhjgTc+D+GWaYYYYVLZEJyu1wshQ1capaC3NpKa5qyiCMiQCT/TTOhZRCkcSRcmUtHqLDAdSr3miauIWgUXpMvvZfxwzrna5rDP0CFvmvRMeYzFvMMMPj8sSkHU5Nz0gGFYZmg3PzCwAXl5ZXVikXI7aO+0U2Nre2d3at/73YIIz2Dw6jR/h7xyenZ+d0+3xxeSVdW/Dm9u7+weG4Pz7Jzy+vb+8fxLh72Cfnn9F/yW5/kAAAAABJRU5ErkJggg==
+      SERVICE_NAME: zookeeper-wssb
+      SERVICE_PLAN_NAME: shared
+      TAGS: zookeeper,distributed,coordination
+      CREDENTIALS: '{"uri": "{{ master_node_host_1 }}:2181,{{ master_node_host_2 }}:2181,{{ master_node_host_3 }}:2181"}'
+      VERSION: '{{ wssb_version }}'
+  broker_config:
+    name: zookeeper-wssb
+    url: http://zookeeper-wssb-broker.{{ apps_domain }}
+    auth_username: '{{ zookeeper_broker_user }}'
+    auth_password: '{{ zookeeper_broker_user_pass }}'
+    service_instances:
+    - name: zookeeper
+      plan: shared
+
+############# GLOBAL USER PROVIDED SERVICES #############
+
+user_provided_services:
+- name: sso
+  credentials:
+    apiEndpoint: http://api.{{ run_domain }}
+    authorizationUri: http://login.{{ run_domain }}/oauth/authorize
+    checkTokenUri: http://uaa.{{ run_domain }}/check_token
+    clientId: tap_console
+    clientSecret: '{{ tap_console_password }}'
+    logoutUri: http://login.{{ run_domain }}/logout.do
+    tokenKey: http://uaa.{{ run_domain }}/token_key
+    tokenUri: http://uaa.{{ run_domain }}/oauth/token
+    uaaUri: http://uaa.{{ run_domain }}
+    userInfoUri: http://uaa.{{ run_domain }}/userinfo
+    email: '{{ email_address }}'
+- name: nats-provider
+  credentials:
+    url: nats://{{ nats_username }}:{{ cf_admin_client_password }}@{{ nats_ip }}:4222
+    service-creation-subject: '{{ nats_service_creation_topic }}'
+    data-catalog-subject: '{{ nats_data_catalog_topic }}'
+- name: gorouter-provider
+  credentials:
+    username: '{{ router_username }}'
+    password: '{{ cf_admin_client_password }}'
+- name: kerberos-service
+  credentials:
+    kdc: "{{ kerberos_host }}"
+    kpassword: "{{ kerberos_password if kerberos_host != '' }}"
+    krealm: "{{ kerberos_realm if kerberos_host != '' }}"
+    kuser: "{{ kerberos_username }}"
+    kcacert: "{{ kerberos_cacert }}"
+- name: marketplace-register-service
+  credentials:
+    username: '{{ application_broker_user }}'
+    password: '{{ application_broker_pass }}'
+    applicationBrokerUrl: http://application-broker.{{ apps_domain }}
+- name: external-tools
+  credentials:
+    hue:
+      available: "{{ external_tool_hue }}"
+      url: "https://hue.{{ apps_domain }}/metastore/table"
+      internal_host: "{{ hue_node }}:8888"
+    arcadia:
+      available: "{{ external_tool_arcadia }}"
+      url: "https://arcadia.{{ apps_domain }}/arc/apps/"
+      internal_host: "{{ arcadia_node }}:80"
+    rstudio:
+      available: "{{ external_tool_rstudio }}"
+    h2o:
+      available: "{{ external_tool_h2o }}"
+      url: "https://h2o.{{ apps_domain }}/"
+      internal_host: "{{ h2o_node }}:54321"
+    gearpump:
+      available: "{{ external_tool_gearpump }}"
+- name: thrift-server
+  credentials:
+    hiveUser: hdfs
+    hiveUrl: '{{ thrift_server_url }}'
+- name: h2o-provisioner
+  credentials:
+    url: http://{{ h2o_provisioner_host }}:{{ h2o_provisioner_port }}
+
+############# GLOBAL BROKERS #############
+brokers:
+- name: docker
+  url: http://cf-containers-broker.{{ run_domain }}
+  auth_username: '{{ docker_broker_user }}'
+  auth_password: '{{ docker_broker_user_pass }}'
+  service_instances:
+#  - name: cassandra-example
+#    plan: v3.3
+#    label: cassandra
+  - name: postgres-for-atk
+    plan: free
+    label: postgresql93
+  - name: mysql-for-atk
+    plan: free
+    label: mysql56
+  - name: security-codes-db
+    plan: free
+    label: redis28
+  - name: service-instances-metadata
+    plan: free
+    label: redis28
+  - name: redis28-for-service-exposer
+    plan: free
+    label: redis28
+  - name: requests-store
+    plan: free
+    label: redis28
+  - name: data-catalog-index
+    plan: free
+    label: elasticsearch13
+  - name: router-metrics-store
+    plan: free
+    label: influxdb088
+  - name: latest-events-store
+    plan: free
+    label: mongodb26
+  - name: application-broker-mongodb
+    plan: free
+    label: mongodb26
+  - name: operations-store
+    plan: free
+    label: mongodb26
+  - name: rstudio-example
+    plan: free
+    label: rstudio
+  - name: ipython-example
+    plan: free
+    label: ipython
+
