@@ -169,7 +169,7 @@ def setup_broker(broker):
     Raises:
         CommandFailedError: Failed to set up the broker.
     """
-    _log.info('Updating broker %s...', broker.name)
+    _log.info('Setting up broker %s...', broker.name)
     broker_args = [broker.name, broker.auth_username, broker.auth_password, broker.url]
     try:
         cf_cli.update_service_broker(*broker_args)
@@ -231,7 +231,7 @@ def setup_buildpack(buildpack_name, buildpacks_directory):
             _log.info('Buildpack %s is already present on the environment in this version. '
                       'Skipping...', buildpack_path)
     except StopIteration:
-        _log.info('Buildpack %s not found, will create it...', buildpack_name)
+        _log.info('Buildpack %s not found in Cloud Foundry, will create it...', buildpack_name)
         cf_cli.create_buildpack(buildpack_name, buildpack_path)
 
 
@@ -277,7 +277,7 @@ def setup_user_provided_service(service):
     Raises:
         CommandFailedError: Failed to set up the service.
     """
-    _log.info('Updating user provided service %s...', service.name)
+    _log.info('Setting up user provided service %s...', service.name)
     service_args = (service.name, json.dumps(service.credentials))
     try:
         cf_cli.update_user_provided_service(*service_args)
