@@ -457,10 +457,9 @@ class AppDeployer(object):
 
             if self.app.push_options.post_command:
                 _log.info('App %s has post-push commands, executing...', self.app.name)
-            subprocess.check_call(self.app.push_options.post_command, shell=True)
+                subprocess.check_call(self.app.push_options.post_command, shell=True)
         else:
             _log.info("No need to push app %s, it's already up-to-date...", self.app.name)
-
 
     def _check_push_needed(self, push_strategy):
         _log.debug('Checking whether to push app %s...', self.app.name)
