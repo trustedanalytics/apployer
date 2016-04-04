@@ -237,7 +237,7 @@ def test_update_upsi(mock_cf_api, mock_cf_cli, upsi_deployer):
     service_bindings = [SERVICE_BINDING]
     mock_cf_api.get_upsi_bindings.return_value = service_bindings
     mock_cf_api.get_upsi_credentials.return_value = {'something': 123}
-    upsi_deployer._rebind_services = MagicMock()
+    upsi_deployer._recreate_bindings = MagicMock()
 
     assert upsi_deployer._update(service_guid) == [SERVICE_BINDING['entity']['app_guid']]
 
@@ -245,7 +245,7 @@ def test_update_upsi(mock_cf_api, mock_cf_cli, upsi_deployer):
     mock_cf_api.get_upsi_bindings.assert_called_with(service_guid)
     mock_cf_cli.update_user_provided_service(
         upsi_deployer.service.name, json.dumps(upsi_deployer.service.credentials))
-    upsi_deployer._rebind_services.assert_called_with(service_bindings)
+    upsi_deployer._recreate_bindings.assert_called_with(service_bindings)
 
 
 def test_update_upsi_not_needed(mock_cf_api, mock_cf_cli, upsi_deployer):
@@ -260,7 +260,7 @@ def test_update_upsi_not_needed(mock_cf_api, mock_cf_cli, upsi_deployer):
 
 
 def test_rebind_services(mock_cf_api, upsi_deployer):
-    upsi_deployer._rebind_services([SERVICE_BINDING])
+    upsi_deployer._recreate_bindings([SERVICE_BINDING])
 
     mock_cf_api.delete_service_binding.assert_called_with(SERVICE_BINDING)
     mock_cf_api.create_service_binding.assert_called_with(
@@ -313,20 +313,6 @@ def test_update_buildpack(monkeypatch, mock_cf_cli):
 
     mock_cf_cli.update_buildpack.assert_called_with(buildpack_name, buildpack_path)
     assert not mock_cf_cli.create_buildpack.call_args_list
-
-
-def test_run_ignoring_errors():
-    def some_func(arg):
-        return arg + 1
-
-    def some_raising_func():
-        raise Exception('blablabla')
-
-    assert deployer.run_ignoring_errors(False, some_func, 1) == 2
-    assert deployer.run_ignoring_errors(True, some_func, 1) == 2
-    deployer.run_ignoring_errors(True, some_raising_func)
-    with pytest.raises(Exception):
-        deployer.run_ignoring_errors(False, some_raising_func)
 
 
 # TODO test register in application broker

@@ -114,9 +114,6 @@ def expand(appstack_file, artifacts_location, expanded_appstack_location):
                    "'UPGRADE': deploy everything that doesn't exist in the environment or is in "
                    "lower version on the environment than in the filled appstack.\n"
                    "'PUSH_ALL': deploy everything from filled appstack.'")
-@click.option('--ignore-errors', is_flag=True,
-              help='Deployment will carry on even if errors occur and the resulting platform will '
-                   'be garbage.')
 def deploy( #pylint: disable=too-many-arguments
         artifacts_location,
         cf_api_endpoint,
@@ -128,8 +125,7 @@ def deploy( #pylint: disable=too-many-arguments
         filled_appstack,
         expanded_appstack,
         appstack,
-        push_strategy,
-        ignore_errors):
+        push_strategy):
     """
     Deploy the whole appstack.
     This should be run from environment's bastion to reduce chance of errors.
@@ -151,7 +147,7 @@ def deploy( #pylint: disable=too-many-arguments
                      org=cf_org, space=cf_space)
     filled_appstack = _get_filled_appstack(appstack, expanded_appstack, filled_appstack,
                                            fetcher_config, artifacts_location)
-    deploy_appstack(cf_info, filled_appstack, artifacts_location, push_strategy, ignore_errors)
+    deploy_appstack(cf_info, filled_appstack, artifacts_location, push_strategy)
 
     _log.info('Deployment time: %s', _seconds_to_time(time.time() - start_time))
 
