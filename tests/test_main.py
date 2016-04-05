@@ -51,14 +51,14 @@ def test_get_filled_appstack_with_filled(monkeypatch, mock_appstack_file):
     monkeypatch.setattr(
         'os.path.exists',
         lambda path: True if path == filled_appstack_path else False)
-    _get_filled_appstack(None, None, filled_appstack_path, None, None)
+    _get_filled_appstack(None, None, filled_appstack_path, None, None, 'other')
 
 
 def test_get_filled_appstack_with_expanded(monkeypatch, mock_appstack_file, mock_fill_appstack):
     monkeypatch.setattr(
         'os.path.exists',
         lambda path: True if path == expanded_appstack_path else False)
-    _get_filled_appstack(None, expanded_appstack_path, None, fetcher_conf_path, artifacts_path)
+    _get_filled_appstack(None, expanded_appstack_path, None, fetcher_conf_path, artifacts_path, 'other')
     mock_fill_appstack.assert_called_once_with(expanded_appstack_path, fetcher_conf_path)
 
 
@@ -69,17 +69,17 @@ def test_get_filled_appstack_with_bare(monkeypatch, mock_appstack_file,
         lambda path: True if path == appstack_path else False)
 
     _get_filled_appstack(appstack_path, expanded_appstack_path, None,
-                         fetcher_conf_path, artifacts_path)
+                         fetcher_conf_path, artifacts_path, 'other')
 
     mock_expand_appstack.assert_called_once_with(appstack_path, artifacts_path,
-                                                 expanded_appstack_path)
+                                                 expanded_appstack_path, 'other')
     mock_fill_appstack.assert_called_once_with(expanded_appstack_path, fetcher_conf_path)
 
 
 def test_get_filled_appstack_with_none(monkeypatch):
     monkeypatch.setattr('os.path.exists', lambda path: False)
     with pytest.raises(ApployerArgumentError):
-        _get_filled_appstack(None, None, None, None, None)
+        _get_filled_appstack(None, None, None, None, None, None)
 
 
 @pytest.mark.parametrize('string, seconds', [

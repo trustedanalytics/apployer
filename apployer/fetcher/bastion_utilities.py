@@ -26,6 +26,9 @@ import yaml
 
 class CFConfExtractor(object):
 
+
+    DEFAULT_PROVISION_SH_PATH = '~/provision.sh'
+
     def __init__(self, config):
         self._logger = logging.getLogger(__name__)
 
@@ -40,6 +43,11 @@ class CFConfExtractor(object):
         self._is_openstack = config['openstack_env']
         self._path_to_cf_tiny_yml = config['machines']['cf-bastion']['path_to_cf_tiny_yml']
         self._path_to_docker_vpc_yml = config['machines']['cf-bastion']['path_to_docker_vpc_yml']
+
+        self._path_to_provision_sh = config['machines']['cf-bastion']['path_to_provision_sh']
+
+        if self._path_to_provision_sh is None:
+            self._path_to_provision_sh = self.DEFAULT_PROVISION_SH_PATH
 
     def __enter__(self):
         extractor = self
@@ -103,6 +111,17 @@ class CFConfExtractor(object):
         result['smtp_port'] = cf_tiny_yml['meta']['login_smtp']['port']
         result['smtp_host'] = cf_tiny_yml['meta']['login_smtp']['host']
         result['smtp_protocol'] = self._determine_smtp_protocol(result['smtp_port'])
+        result['aws_default_region_name'] = self._fetch_variable_from_provision_sh('REGION')
+        result['aws_access_key_id'] = self._fetch_variable_from_provision_sh('AWS_KEY_ID')
+        result['aws_secret_access_key'] = self._fetch_variable_from_provision_sh('AWS_ACCESS_KEY')
+        result['vpc'] = self._fetch_variable_from_provision_sh('VPC')
+        # To replace after finishing https://intel-data.atlassian.net/browse/DPNG-6527
+        result['subnet'] = self._fetch_variable_from_provision_sh('CF_SUBNET1')
+        #result['subnet'] = self._fetch_variable_from_provision_sh('KUBERNETES_SUBNET')
+        #result['kubernetes_subnet_cidr'] = self._fetch_variable_from_provision_sh('KUBERNETES_SUBNET_IP')
+        result['key_name'] = self._fetch_key_name_from_aws()
+        result['consul_dc'] = self._fetch_variable_from_provision_sh('ENV_NAME')
+        result['consul_join'] = self._fetch_variable_from_provision_sh('CONSUL_MASTERS')
         return result
 
     def get_environment_settings(self):
@@ -118,3 +137,19 @@ class CFConfExtractor(object):
             self._logger.info('Custom mail port is set, set your mail protocol manually '
                              'in template_variables.yml file and run script once again!')
             return None
+
+    def _fetch_variable_from_provision_sh(self, var_name):
+        raw_var_assignment = self.ssh_call_command('cat ' + self._path_to_provision_sh + ' | grep ' + var_name + '=')
+        var_value = raw_var_assignment.split('=')[1]
+
+        var_value = var_value.translate(None, '\"\n')
+
+        if "," in var_value:
+            var_value = var_value.split(',')[0]
+
+        return var_value
+
+    def _fetch_key_name_from_aws(self):
+        raw_key_name = self.ssh_call_command('curl 169.254.169.254/latest/meta-data/public-keys/')
+        correct_key_name = raw_key_name.split('=')[1]
+        return correct_key_name

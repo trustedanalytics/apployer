@@ -222,6 +222,22 @@ apps:
     service_instances:
     - name: hive-instance-shared
       plan: shared
+
+- name: kubernetes-broker
+  group: k8s
+  app_properties:
+    env:
+      SERVICES_DOMAIN: '{{ apps_domain }}'
+  broker_config:
+    name: kubernetes
+    url: http://kubernetes-broker.{{ apps_domain }}
+    auth_username: '{{ kubernetes_broker_user }}'
+    auth_password: '{{ kubernetes_broker_password }}'
+  user_provided_services:
+    - name: kubernetes-broker
+      credentials:
+        host: http://kubernetes-broker.{{ apps_domain }}
+
 # APPS IN APPLICATION BROKER
 
 - name: gateway
@@ -415,6 +431,25 @@ apps:
     credentials:
       host: http://platform-context.{{ apps_domain }}
 
+- name: demiurge
+  group: k8s
+  app_properties:
+      env:
+        AWS_DEFAULT_REGION: '{{ aws_default_region_name }}'
+        AWS_ACCESS_KEY_ID: '{{ aws_access_key_id }}'
+        AWS_SECRET_ACCESS_KEY: '{{ aws_secret_access_key }}'
+        VPC: '{{ vpc }}'
+        SUBNET: '{{ subnet }}'
+        KEY_NAME: '{{ key_name }}'
+        CONSUL_DC: '{{ consul_dc }}'
+        CONSUL_JOIN: '{{ consul_join }}'
+        USERNAME: '{{ demiurge_username }}'
+        PASSWORD: '{{ demiurge_password }}'
+  user_provided_services:
+  - name: demiurge
+    credentials:
+      host: http://demiurge.{{ apps_domain }}
+
 - name: h2o-scoring-engine-publisher
 
 # WSSB brokers
@@ -539,6 +574,7 @@ apps:
 
 user_provided_services:
 - name: sso
+  group: k8s, other
   credentials:
     apiEndpoint: http://api.{{ run_domain }}
     authorizationUri: http://login.{{ run_domain }}/oauth/authorize
@@ -605,6 +641,13 @@ user_provided_services:
     auth_user: '{{ app_dep_disc_user }}'
     auth_pass: '{{ app_dep_disc_pass }}'
     url: http://app-dependency-discoverer.{{ apps_domain }}
+- name: kubernetes-creator-credentials
+  group: k8s
+  credentials:
+    username: '{{ demiurge_username }}'
+    password: '{{ demiurge_password }}'
+    url: http://demiurge.{{ apps_domain }}
+
 
 ############# GLOBAL BROKERS #############
 brokers:
@@ -658,4 +701,12 @@ brokers:
   - name: ipython-example
     plan: free
     label: ipython
+
+
+security_groups:
+- name: kubernetes
+  group: k8s
+  protocol: tcp
+  destination: '{{ kubernetes_subnet_cidr }}'
+  ports: 1-65535
 

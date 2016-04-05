@@ -26,7 +26,22 @@ There are plenty of examples there.
 At the moment, documentation of the fields that can be used is in `apployer/appstack.py`,
 in classes: AppConfig, BrokerConfig, UserProvidedService, BrokerConfig, ServiceInstance, PushOptions.
 
-Need new configuration values? edit `templates/template_variables.yml` and scripts in `apployer/fetcher` directory.  
+Need new configuration values? edit `templates/template_variables.yml` and scripts in `apployer/fetcher` directory.
+
+## Groups
+Now in `appstack.yml` every component can have `group: <group>` entry. Groups defines, which elements of the
+appstack should be deployed. This feature is used only for defining kubernetes deployment at the moment.
+Kubernetes-specific elements have `group: k8s`. Every element without this entry has `group: other` by default.
+
+## Kubernetes
+Apployer has now an additional flag, which describes if kubernetes should be deployed with existing appstack. The
+flag is `apployer deploy -k8s <mode>` . Available modes:
+* "no" (default) - deployment without kubernetes components
+* "with" - deployment with kubernetes alongside existing appstack configuration ("no" + kubernetes)
+* "upgrade" - upgrade existing "no" TAP configuration with kubernetes (pushes only k8s modules)
+
+Notice that this option will not work if `expanded_appstack.yml` was previously generated (e.g. if `apployer expand` was
+invoked earlier)
 
 ## Troubleshooting
 > Cannot create a tunnel to CDH-Manager machine.

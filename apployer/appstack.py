@@ -94,12 +94,13 @@ class AppStack(DataContainer):
     """
 
     def __init__(self, apps=None, user_provided_services=None, # pylint: disable=too-many-arguments
-                 brokers=None, buildpacks=None, domain=None):
+                 brokers=None, buildpacks=None, domain=None, security_groups=None):
         self.apps = apps or []
         self.user_provided_services = user_provided_services or []
         self.brokers = brokers or []
         self.buildpacks = buildpacks or []
         self.domain = domain or ''
+        self.security_groups = security_groups or []
 
         self._validate_register_in()
 
@@ -119,7 +120,10 @@ class AppStack(DataContainer):
                    in appstack.get('brokers', [])]
         buildpacks = appstack.get('buildpacks', [])
         domain = appstack.get('domain')
-        return AppStack(apps, user_provided_services, brokers, buildpacks, domain)
+        security_groups = [SecurityGroup.from_dict(sg_dict) for sg_dict
+                           in appstack.get('security_groups', [])]
+
+        return AppStack(apps, user_provided_services, brokers, buildpacks, domain, security_groups)
 
     @staticmethod
     def _get_apps(appstack):
@@ -217,7 +221,7 @@ class AppConfig(DataContainer): # pylint: disable=too-many-instance-attributes
 
     def __init__(self, name, app_properties=None,   # pylint: disable=too-many-arguments
                  user_provided_services=None, broker_config=None, artifact_name=None,
-                 register_in=None, push_options=None, order=None):
+                 register_in=None, push_options=None, order=None, group='other'):
         if not name:
             raise MalformedAppStackError("Application's name not specified.")
         self.name = name
@@ -227,7 +231,7 @@ class AppConfig(DataContainer): # pylint: disable=too-many-instance-attributes
         self.artifact_name = artifact_name or name
         self.register_in = register_in
         self.push_options = push_options or PushOptions()
-
+        self.group = _string_to_array(group)
         self.order = order
         if isinstance(order, int):
             self.is_ordered = True
@@ -325,13 +329,14 @@ class BrokerConfig(DataContainer):
     """
 
     def __init__(self, name, url,  # pylint: disable=too-many-arguments
-                 auth_username, auth_password, service_instances=None):
+                 auth_username, auth_password, service_instances=None, group='other'):
         # TODO validate the fields
         self.name = name
         self.url = url
         self.auth_username = auth_username
         self.auth_password = auth_password
         self.service_instances = service_instances or []
+        self.group = _string_to_array(group)
 
     @staticmethod
     def from_dict(broker_config_dict):
@@ -361,11 +366,12 @@ class ServiceInstance(DataContainer):
             broker.
     """
 
-    def __init__(self, name, plan, label=None):
+    def __init__(self, name, plan, label=None, group='other'):
         # TODO validate the fields
         self.name = name
         self.plan = plan
         self.label = label
+        self.group = _string_to_array(group)
 
 
 class UserProvidedService(DataContainer):
@@ -377,7 +383,61 @@ class UserProvidedService(DataContainer):
             environment when binding the service.
     """
 
-    def __init__(self, name, credentials):
+    def __init__(self, name, credentials, group='other'):
         # TODO validate the fields
         self.name = name
         self.credentials = credentials
+        self.group = _string_to_array(group)
+
+
+class SecurityGroup(DataContainer):
+    """Configuration of a Cloud Foundry security group.
+
+    Attributes:
+        name (str): Instance's name.
+        protocol (str): Service's credentials - the content that get into application's
+            environment when binding the service.
+        destination (str): Same as in CF (refer to cf help)
+        ports (str): Same as in CF (refer to cf help)
+    """
+    # pylint: disable=too-many-arguments
+    def __init__(self, name, protocol, destination, ports, group='other'):
+        self.name = name
+        self.protocol = protocol
+        self.destination = destination
+        self.ports = ports
+        self.group = _string_to_array(group)
+
+    @classmethod
+    def from_dict(cls, security_group_dict):
+        """
+        Args:
+            security_group_dict (dict): `SecurityGroup` instance serialized to a dictionary.
+
+        Returns:
+            `SecurityGroup`: Deserialized instance.
+        """
+        name = security_group_dict['name']
+        protocol = security_group_dict['protocol']
+        destination = security_group_dict['destination']
+        ports = security_group_dict['ports']
+        if 'group' in security_group_dict:
+            group = security_group_dict['group']
+        else:
+            group = 'other'
+
+        return cls(name, protocol, destination, ports, group)
+
+
+def _string_to_array(group_str):
+
+    if isinstance(group_str, list):
+        return group_str
+
+    group_array_raw = group_str.split(',')
+    group_array = []
+
+    for group in group_array_raw:
+        group_array.append(group.strip())
+
+    return group_array

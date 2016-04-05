@@ -21,8 +21,9 @@ brokers.
 
 import glob
 import json
+from copy import copy
 import logging
-from os import path
+from os import path, remove
 import subprocess
 from zipfile import ZipFile
 
@@ -44,6 +45,8 @@ FINAL_MANIFESTS_FOLDER = 'manifests'
 
 DEPLOYER_OUTPUT = 'apployer_out'
 
+SG_RULES_FILENAME = 'set-access.json'
+
 
 # TODO add option of dry run that switches all cf_cli commands to stubs
 def deploy_appstack(cf_login_data, filled_appstack, artifacts_path, push_strategy):
@@ -60,6 +63,10 @@ def deploy_appstack(cf_login_data, filled_appstack, artifacts_path, push_strateg
     _prepare_org_and_space(cf_login_data)
 
     apps_to_restart = []
+
+    for security_group in filled_appstack.security_groups:
+        setup_security_group(security_group)
+
     for service in filled_appstack.user_provided_services:
         affected_apps = UpsiDeployer(service).deploy()
         apps_to_restart.extend(affected_apps)
@@ -467,6 +474,28 @@ class AppVersionNotFoundError(Exception):
     """
     'VERSION' environment variable wasn't present for an application.
     """
+
+
+def setup_security_group(security_group):
+    """Creates and binds security group to seedorg.
+
+    Args:
+        security_group (`apployer.SecurityGroup`): Definition of security group
+    """
+    security_group_copy = copy(security_group)
+
+    del security_group_copy.group
+    del security_group_copy.name
+
+    security_group_arrayed = [security_group_copy.__dict__]
+
+    with open(SG_RULES_FILENAME, 'w') as file_pipe:
+        json.dump(security_group_arrayed, file_pipe)
+
+    cf_cli.create_security_group(security_group.name, SG_RULES_FILENAME)
+    cf_cli.bind_security_group(security_group.name, 'seedorg', 'seedspace')
+
+    remove(SG_RULES_FILENAME)
 
 
 def _prepare_org_and_space(cf_login_data):

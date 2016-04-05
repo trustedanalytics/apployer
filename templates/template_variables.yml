@@ -195,6 +195,14 @@ broker_system_user: cf
 # password that the all broker will use to login
 broker_system_user_password: cf1
 
+kubernetes_broker_user: admin
+
+kubernetes_broker_password: password
+
+demiurge_username: admin
+
+demiurge_password: admin
+
 ### TO REMOVE after DPNG-2306 ###############
 external_tool_arcadia: "false"
 external_tool_hue: "true"
@@ -282,3 +290,22 @@ smtp_protocol:
 
 # also known as Hive URL. This value changes depending on presence of Arcadia and Kerberos
 thrift_server_url:
+
+aws_default_region_name:
+
+aws_access_key_id:
+
+aws_secret_access_key:
+
+vpc:
+
+subnet:
+
+key_name:
+
+consul_dc:
+
+consul_join:
+
+kubernetes_subnet_cidr: 10.10.6.0/24
+

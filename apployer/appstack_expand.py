@@ -41,18 +41,28 @@ finally:
 _log = logging.getLogger(__name__) # pylint: disable=invalid-name
 
 
-def expand_appstack(appstack_file_path, artifacts_location, expanded_appstack_path):
+def expand_appstack(appstack_file_path, artifacts_location, expanded_appstack_path,
+                    include_groups=None):
     """Creates an expanded appstack, that is appstack with merged app manifests and also
-    sorted in the order in which the applications should be deployed.
+    sorted in the order in which the applications should be deployed. Appstack is additionally
+    filtered by include_groups which describes a set of applications to be deployed
 
     Args:
         appstack_file_path (str): Location of appstack configuration file.
         artifacts_location (str): Location of deployable artifacts (zips) of platform applications.
         expanded_appstack_path (str): Where to store expanded appstack file.
+        include_groups ([str]): Applications' groups to include in deploy
     """
+
+    if include_groups is None:
+        include_groups = ['other']
+
     with open(appstack_file_path) as appstack_file:
         appstack_dict = yaml.load(appstack_file)
         appstack = AppStack.from_appstack_dict(appstack_dict)
+
+    appstack = _filter_groups_in_appstack(appstack, include_groups)
+
     manifests = _get_artifact_manifests(artifacts_location)
 
     _log.info('Expanding appstack with application manifests...')
@@ -66,6 +76,42 @@ def expand_appstack(appstack_file_path, artifacts_location, expanded_appstack_pa
             expanded_appstack_file,
             default_flow_style=False,
             width=1000)
+
+
+def _filter_groups_in_appstack(appstack, include_groups):
+    """Filters whole appstack by groups.
+    Args:
+        appstack (apployer.AppStack): Appstack instance.
+        include_groups ([str]): Applications' groups to include in deploy.
+    """
+    appstack.apps = [app for app in appstack.apps
+                     if _is_in_include_groups(app, include_groups)]
+    appstack.brokers = [broker for broker in appstack.brokers
+                        if _is_in_include_groups(broker, include_groups)]
+    appstack.user_provided_services = [ups for ups in appstack.user_provided_services
+                                       if _is_in_include_groups(ups, include_groups)]
+    appstack.security_groups = [sg for sg in appstack.security_groups
+                                if _is_in_include_groups(sg, include_groups)]
+
+    # Buildpacks are 'other' group.
+
+    if include_groups.count('other') == 0:
+        appstack.buildpacks = []
+
+    return appstack
+
+
+def _is_in_include_groups(app, include_groups):
+    """Checks if app is in include_groups (if app is in at least one group from include_groups)
+
+    Args:
+        app (appstack.DataContainer): Application to be checked
+        include_groups ([str]): Applications' groups to include in deploy.
+    """
+    for group in app.group:
+        if include_groups.count(group):
+            return True
+    return False
 
 
 def _get_artifact_manifests(artifacts_path):

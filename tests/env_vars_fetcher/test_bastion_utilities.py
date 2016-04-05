@@ -31,7 +31,8 @@ def fetcher_config():
                 'key_filename': 'key.pem',
                 'key_password': None,
                 'path_to_cf_tiny_yml': None,
-                'path_to_docker_vpc_yml': None
+                'path_to_docker_vpc_yml': None,
+                'path_to_provision_sh': None
             },
             'cdh-manager-ip': ''
         }

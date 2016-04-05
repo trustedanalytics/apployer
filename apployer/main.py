@@ -57,7 +57,14 @@ def cli(verbose):
 @click.argument('APPSTACK_FILE', required=False, default=DEFAULT_APPSTACK_FILE)
 @click.argument('EXPANDED_APPSTACK_LOCATION',
                 default=DEFAULT_EXPANDED_APPSTACK_FILE, required=False)
-def expand(appstack_file, artifacts_location, expanded_appstack_location):
+@click.option('-k8s', default='no',
+              help='Kubernetes deployment switch. '
+                   'NOTICE: works only if expanded or filled appstack is not provided!\n'
+                   '"no" (default): standard without kubernetes.\n'
+                   '"with": k8s alongside\n'
+                   '"only": only k8s'
+                   '"upgrade": upgrades existing TAP instance only with k8s modules')
+def expand(appstack_file, artifacts_location, expanded_appstack_location, k8s):
     """
     Merges the manifests from app artifacts in appstack creating an expanded appstack that can be
     added to TAP release package. Applications in expanded appstack are sorted according to
@@ -71,7 +78,8 @@ def expand(appstack_file, artifacts_location, expanded_appstack_location):
 
     EXPANDED_APPSTACK_LOCATION defaults to "expanded_appstack.yml".
     """
-    expand_appstack(appstack_file, artifacts_location, expanded_appstack_location)
+    include_groups = _examine_include_groups(k8s)
+    expand_appstack(appstack_file, artifacts_location, expanded_appstack_location, include_groups)
 
 
 @cli.command()
@@ -114,7 +122,14 @@ def expand(appstack_file, artifacts_location, expanded_appstack_location):
                    "'UPGRADE': deploy everything that doesn't exist in the environment or is in "
                    "lower version on the environment than in the filled appstack.\n"
                    "'PUSH_ALL': deploy everything from filled appstack.'")
-def deploy( #pylint: disable=too-many-arguments
+@click.option('-k8s', default='no',
+              help='Kubernetes deployment switch. '
+                   'NOTICE: works only if expanded or filled appstack is not provided!\n'
+                   '"no" (default): standard without kubernetes.\n'
+                   '"with": k8s alongside\n'
+                   '"only": only k8s'
+                   '"upgrade": upgrades existing TAP instance only with k8s modules')
+def deploy( #pylint: disable=too-many-arguments,too-many-locals
         artifacts_location,
         cf_api_endpoint,
         cf_user,
@@ -125,7 +140,9 @@ def deploy( #pylint: disable=too-many-arguments
         filled_appstack,
         expanded_appstack,
         appstack,
-        push_strategy):
+        push_strategy,
+        k8s):
+
     """
     Deploy the whole appstack.
     This should be run from environment's bastion to reduce chance of errors.
@@ -145,19 +162,23 @@ def deploy( #pylint: disable=too-many-arguments
 
     cf_info = CfInfo(api_url=cf_api_endpoint, password=cf_password, user=cf_user,
                      org=cf_org, space=cf_space)
+
+    include_groups = _examine_include_groups(k8s)
+
     filled_appstack = _get_filled_appstack(appstack, expanded_appstack, filled_appstack,
-                                           fetcher_config, artifacts_location)
+                                           fetcher_config, artifacts_location, include_groups)
     deploy_appstack(cf_info, filled_appstack, artifacts_location, push_strategy)
 
     _log.info('Deployment time: %s', _seconds_to_time(time.time() - start_time))
 
 
-def _get_filled_appstack(
+def _get_filled_appstack( #pylint: disable=too-many-arguments
         appstack_path,
         expanded_appstack_path,
         filled_appstack_path,
         fetcher_config_path,
-        artifacts_location):
+        artifacts_location,
+        include_groups):
     """ Does the necessary things to obtain a filled expanded appstack based on the command line
     parameters.
 
@@ -168,6 +189,7 @@ def _get_filled_appstack(
         fetcher_config_path (str): Path to the configuration file for environment configuration
             fetcher.
         artifacts_location (str): Path to a directory with applications' artifacts (zips).
+        include_groups ([str]): Groups' names which to include in deployment
 
     Returns:
         `AppStack`: Expanded appstack filled with configuration extracted from
@@ -181,7 +203,7 @@ def _get_filled_appstack(
         final_appstack_path = fill_appstack(expanded_appstack_path, fetcher_config_path)
     elif os.path.exists(appstack_path):
         _log.info('Using appstack file: %s', os.path.realpath(appstack_path))
-        expand_appstack(appstack_path, artifacts_location, expanded_appstack_path)
+        expand_appstack(appstack_path, artifacts_location, expanded_appstack_path, include_groups)
         final_appstack_path = fill_appstack(expanded_appstack_path, fetcher_config_path)
     else:
         raise ApployerArgumentError("Couldn't find any appstack file.")
@@ -201,6 +223,21 @@ def _setup_logging(level):
     project_logger = logging.getLogger(apployer.__name__)
     project_logger.setLevel(level)
     project_logger.addHandler(handler)
+
+
+def _examine_include_groups(k8s_option):
+    if k8s_option == 'no':
+        include_groups = ['other']
+    elif k8s_option == 'with':
+        include_groups = ['other', 'k8s']
+    elif k8s_option == 'only':
+        raise NotImplementedError("not supported yet")
+    elif k8s_option == 'upgrade':
+        include_groups = ['k8s']
+    else:
+        raise ApployerArgumentError('k8s')
+
+    return include_groups
 
 
 class ApployerArgumentError(Exception):

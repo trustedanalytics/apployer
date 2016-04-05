@@ -329,6 +329,34 @@ def update_user_provided_service(service_name, credentials):
     _run_command([CF, 'update-user-provided-service', service_name, '-p', credentials])
 
 
+def create_security_group(security_group, path_to_json):
+    """Creates CF security group
+
+    Args:
+        security_group (str): Name of the security group
+        path_to_json (str): Path to json file containing security rules for group.
+                            (for more info about json structure, refer to cf help)
+
+    Raises:
+        CommandFailedError: When the command fails (returns non-zero code).
+    """
+    _run_command([CF, 'create-security-group', security_group, path_to_json])
+
+
+def bind_security_group(security_group, org, space):
+    """Binds CF security group to specific organization and space
+
+    Args:
+        security_group (str): Name of the security group
+        org (str): Org name to bind security group to.
+        space (str): Space name to bind security group to.
+
+    Raises:
+        CommandFailedError: When the command fails (returns non-zero code).
+    """
+    _run_command([CF, 'bind-security-group', security_group, org, space])
+
+
 def api(api_url, ssl_validation):
     """Set target Cloud Foundry API URL for the CF CLI commands.
 

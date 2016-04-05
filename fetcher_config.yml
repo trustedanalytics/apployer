@@ -35,6 +35,7 @@ machines:
    # optional (used default values)
    path_to_cf_tiny_yml:
    path_to_docker_vpc_yml:
+   path_to_provision_sh:
 
  cdh-manager:
    user: admin
