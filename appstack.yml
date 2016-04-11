@@ -504,6 +504,9 @@ user_provided_services:
     username: '{{ application_broker_user }}'
     password: '{{ application_broker_pass }}'
     applicationBrokerUrl: http://application-broker.{{ apps_domain }}
+- name: h2o-model-publisher
+  credentials:
+    host: http://h2o-scoring-engine-publisher.{{ apps_domain }} 
 - name: external-tools
   credentials:
     hue:
