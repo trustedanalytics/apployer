@@ -38,10 +38,22 @@ apps:
     env:
       NODE_TLS_REJECT_UNAUTHORIZED: 0
 
+- name: app-dependency-discoverer
+  app_properties:
+    buildpack: go_buildpack
+    env:
+      AUTH_USER: '{{ app_dep_disc_user }}'
+      AUTH_PASS: '{{ app_dep_disc_pass }}'
+      CLIENT_ID: tap_console
+      CLIENT_SECRET: '{{ tap_console_password }}'
+      TOKEN_URL: 'http://uaa.{{ run_domain }}/oauth/token'
+      CF_API: 'http://api.{{ run_domain }}'
+
 # BROKERS
 
 - name: application-broker
   app_properties:
+    buildpack: go_buildpack
     env:
       AUTH_USER: '{{ application_broker_user }}'
       AUTH_PASS: '{{ application_broker_pass }}'
@@ -49,6 +61,12 @@ apps:
       CLIENT_ID: tap_console
       CLIENT_SECRET: '{{ tap_console_password }}'
       TOKEN_URL: http://uaa.{{ run_domain }}/oauth/token
+    user_provided_services:
+      - name: app-dependency-discoverer-ups
+        credentials:
+          auth_user: '{{ app_dep_disc_user }}'
+          auth_pass: '{{ app_dep_disc_pass }}'
+          url: http://app-dependency-discoverer.{{ apps_domain }}
 
 - name: gearpump-broker
   app_properties:
@@ -533,6 +551,11 @@ user_provided_services:
 - name: h2o-provisioner
   credentials:
     url: http://{{ h2o_provisioner_host }}:{{ h2o_provisioner_port }}
+- name: app-dependency-discoverer-ups
+  credentials:
+    auth_user: '{{ app_dep_disc_user }}'
+    auth_pass: '{{ app_dep_disc_pass }}'
+    url: http://app-dependency-discoverer.{{ apps_domain }}
 
 ############# GLOBAL BROKERS #############
 brokers:

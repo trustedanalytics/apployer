@@ -60,6 +60,12 @@ application_broker_user: admin
 # password that Application Broker will use for basic auth handling
 application_broker_pass: admin
 
+# username for basic auth in App dependency discoverer
+app_dep_disc_user: admin
+
+# username for basic auth in App dependency discoverer
+app_dep_disc_pass: password
+
 # UAA client password for atk. Use quoted empty string to leave it unset.
 atk_client_pass: "''"
 
