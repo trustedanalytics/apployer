@@ -95,7 +95,6 @@ def deploy_appstack(cf_login_data, filled_appstack, artifacts_path, push_strateg
     _log.info('DEPLOYMENT FINISHED')
 
 
-# TODO test this
 def register_in_application_broker(registered_app, application_broker, app_domain,
                                    unpacked_apps_dir, artifacts_location):
     """Registers an application in another application that provides some special functionality.
@@ -496,7 +495,6 @@ def _restart_apps(filled_appstack, app_guids):
             extracted from a live TAP environment.
         app_guids (list[str]): Applications GUIDs.
     """
-    # TODO need to check if an app has --no-start param
     app_names = [cf_api.get_app_name(app_guid) for app_guid in app_guids]
 
     for app_name in app_names:
@@ -506,5 +504,5 @@ def _restart_apps(filled_appstack, app_guids):
                       "changed...", app_name)
             cf_cli.restart(app_name)
         else:
-            _log.info("Some of user-provided services bound to app %s have changed, but there's no "
-                      "need to restart it, since it has the '--no-start' flag.", app_name)
+            _log.info("Some of user-provided services bound to app %s have changed, but there's "
+                      "no need to restart it, since it has the '--no-start' flag.", app_name)

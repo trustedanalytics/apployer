@@ -25,7 +25,7 @@ import yaml
 from apployer import deployer
 from apployer.appstack import (AppStack, AppConfig, UserProvidedService, BrokerConfig, PushOptions,
                                ServiceInstance)
-from apployer.cf_cli import CommandFailedError
+from apployer.cf_cli import CommandFailedError, CfInfo, BuildpackDescription
 
 from .fake_cli_outputs import GET_ENV_SUCCESS
 from .utils import get_appstack_resource
@@ -50,6 +50,7 @@ def filled_appstack(filled_appstack_dict):
 
 @pytest.fixture
 def app_deployer(filled_appstack, apployer_output):
+    """Returns a deployer for app "B" from expanded appstack in test resources."""
     app = next(app for app in filled_appstack.apps if app.name == 'B')
     app.push_options = PushOptions('--some --options', 'some evil --command')
     return deployer.AppDeployer(app, apployer_output)
@@ -62,6 +63,39 @@ def mock_cf_cli(monkeypatch):
     return mock_cf
 
 
+@pytest.fixture
+def mock_upsi_deployer(monkeypatch):
+    """Returns a mock of `UpsiDeployer` class.
+    If instantiated it will return another mock that will act as a created object."""
+    mock_init = MagicMock(return_value=MagicMock())
+    monkeypatch.setattr('apployer.deployer.UpsiDeployer', mock_init)
+    return mock_init
+
+
+@pytest.fixture
+def mock_setup_broker(monkeypatch):
+    mock_setup = MagicMock()
+    monkeypatch.setattr('apployer.deployer.setup_broker', mock_setup)
+    return mock_setup
+
+
+def test_app_deploy(app_deployer, mock_upsi_deployer, mock_setup_broker):
+    artifacts_location = 'some/fake/location'
+    broker = BrokerConfig('name', 'url', 'user', 'pass')
+    app_deployer.app.broker_config = broker
+    apps_to_restart = ['some-fake-guid-1', 'some-fake-guid-2']
+    mock_push_app = MagicMock()
+    app_deployer._push_app = mock_push_app
+
+    mock_upsi_deployer.return_value.deploy.return_value = apps_to_restart
+
+    assert app_deployer.deploy(artifacts_location) == apps_to_restart
+
+    mock_push_app.assert_called_with(artifacts_location, deployer.UPGRADE_STRATEGY)
+    mock_upsi_deployer.assert_called_with(app_deployer.app.user_provided_services[0])
+    mock_setup_broker.assert_called_with(broker)
+
+
 def test_get_app_version(app_deployer, mock_cf_cli):
     app_version = '6.6.6'
     mock_cf_cli.env.return_value = GET_ENV_SUCCESS
@@ -70,15 +104,28 @@ def test_get_app_version(app_deployer, mock_cf_cli):
     mock_cf_cli.env.assert_called_once_with(app_deployer.app.name)
 
 
+def test_get_app_version_fail(app_deployer, mock_cf_cli):
+    mock_cf_cli.env.return_value = 'some fake output \n without any version'
+
+    with pytest.raises(deployer.AppVersionNotFoundError):
+        app_deployer._get_app_version()
+
+
 def test_prepare_app(artifacts_location, app_deployer):
     prepared_app_path = app_deployer.prepare(artifacts_location)
 
     app_manifest_path = os.path.join(prepared_app_path, 'manifest.yml')
-    filled_app_manifest_path = os.path.join(prepared_app_path, deployer.AppDeployer.FILLED_MANIFEST)
+    filled_app_manifest_path = os.path.join(prepared_app_path,
+                                            deployer.AppDeployer.FILLED_MANIFEST)
     assert os.path.exists(app_manifest_path)
     with open(filled_app_manifest_path) as filled_manifest_file:
         manifest_dict = yaml.load(filled_manifest_file)
     assert manifest_dict == {'applications': [app_deployer.app.app_properties]}
+
+
+def test_prepare_app_no_artifact(app_deployer):
+    with pytest.raises(IOError):
+        app_deployer.prepare('/some/fake/location')
 
 
 @pytest.mark.parametrize('live_version, appstack_version, strategy, push_needed', [
@@ -87,7 +134,7 @@ def test_prepare_app(artifacts_location, app_deployer):
     ('0.0.1', '0.0.2', deployer.PUSH_ALL_STRATEGY, True),
     ('0.0.3', '0.0.2', deployer.PUSH_ALL_STRATEGY, True),
 ])
-def test_check_push_needed(live_version, appstack_version, strategy, push_needed):
+def test_check_app_push_needed(live_version, appstack_version, strategy, push_needed):
     app = AppConfig('bla', app_properties={'env': {'VERSION': appstack_version}})
     app_deployer = deployer.AppDeployer(app, 'some-fake-path')
     app_deployer._get_app_version = lambda: live_version
@@ -95,14 +142,21 @@ def test_check_push_needed(live_version, appstack_version, strategy, push_needed
     assert app_deployer._check_push_needed(strategy) == push_needed
 
 
-def test_check_push_needed_get_version_fail():
+def test_check_app_push_needed_get_version_fail():
     app_deployer = deployer.AppDeployer(AppConfig('bla'), 'some-fake-path')
     app_deployer._get_app_version = MagicMock(side_effect=CommandFailedError)
 
     assert app_deployer._check_push_needed(deployer.UPGRADE_STRATEGY)
 
 
-def test_push_app(app_deployer, monkeypatch, mock_cf_cli):
+@pytest.fixture
+def mock_check_call(monkeypatch):
+    mock_check = MagicMock()
+    monkeypatch.setattr('apployer.deployer.subprocess.check_call', mock_check)
+    return mock_check
+
+
+def test_push_app(app_deployer, mock_check_call, mock_cf_cli):
     # arrange
     artifacts_location = '/bla/release/apps'
     push_strategy = 'some-fake-strategy'
@@ -110,11 +164,10 @@ def test_push_app(app_deployer, monkeypatch, mock_cf_cli):
     prepared_app_path = '/bla/release/apps/tested_app'
     app_manifest_location = os.path.join(prepared_app_path, deployer.AppDeployer.FILLED_MANIFEST)
 
-    mock_check_call, mock_prepare = [MagicMock() for _ in range(2)]
+    mock_prepare = MagicMock()
     app_deployer._check_push_needed = lambda _: True
     app_deployer.prepare = mock_prepare
     mock_prepare.return_value = prepared_app_path
-    monkeypatch.setattr('apployer.deployer.subprocess.check_call', mock_check_call)
 
     # act
     app_deployer._push_app(artifacts_location, push_strategy)
@@ -286,12 +339,16 @@ def test_setup_service_instance_not_needed(broker, mock_cf_cli):
     assert not mock_cf_cli.create_service.call_args_list
 
 
-def test_create_buildpack(monkeypatch, mock_cf_cli):
-    mock_get_file_path = MagicMock()
+@pytest.fixture
+def mock_get_file_path(monkeypatch):
+    mock_get_file = MagicMock()
+    monkeypatch.setattr('apployer.app_file.get_file_path', mock_get_file)
+    return mock_get_file
+
+def test_create_buildpack(monkeypatch, mock_cf_cli, mock_get_file_path):
     buildpack_name = 'some-buildpack'
-    tools_dir = '/bla/tools/'
+    tools_dir = '/release/tools/'
     buildpack_path = tools_dir + 'some-buildpack-v1.2.3'
-    monkeypatch.setattr('apployer.app_file.get_file_path', mock_get_file_path)
     monkeypatch.setattr('apployer.deployer._check_buildpack_needed',
                         MagicMock(side_effect=StopIteration))
     mock_get_file_path.return_value = buildpack_path
@@ -302,12 +359,12 @@ def test_create_buildpack(monkeypatch, mock_cf_cli):
     mock_cf_cli.create_buildpack.assert_called_with(buildpack_name, buildpack_path)
 
 
-def test_update_buildpack(monkeypatch, mock_cf_cli):
+def test_update_buildpack(monkeypatch, mock_cf_cli, mock_get_file_path):
     buildpack_name = 'some-buildpack'
-    tools_dir = '/bla/tools/'
+    tools_dir = 'release/tools/'
     buildpack_path = tools_dir + 'some-buildpack-v1.2.3'
-    monkeypatch.setattr('apployer.app_file.get_file_path', lambda _, __: buildpack_path)
     monkeypatch.setattr('apployer.deployer._check_buildpack_needed', MagicMock(return_value=True))
+    mock_get_file_path.return_value = buildpack_path
 
     deployer.setup_buildpack(buildpack_name, tools_dir)
 
@@ -315,11 +372,140 @@ def test_update_buildpack(monkeypatch, mock_cf_cli):
     assert not mock_cf_cli.create_buildpack.call_args_list
 
 
-# TODO test register in application broker
+def test_check_buildpack_needed(mock_cf_cli):
+    buildpack_name = 'some-buildpack'
+    mock_cf_cli.buildpacks.return_value = [BuildpackDescription(buildpack_name, '1',
+                                                                'true', 'false',
+                                                                buildpack_name+'v1.2.3.zip')]
 
-# TODO this should be a more integration test. It should work on mocked out CF or mocked CF CLI
-# @pytest.mark.xfail
-# def test_deploy_appstack_with_artifacts(artifacts_location, cf_info, monkeypatch):
-#     filled_appstack = ''
-#
-#     deployer.deploy_appstack(cf_info, filled_appstack, artifacts_location)
+    assert deployer._check_buildpack_needed(buildpack_name, buildpack_name+'v1.0.0.zip')
+
+
+def test_check_buildpack_needed_false(mock_cf_cli):
+    buildpack_name = 'some-buildpack'
+    buildpack_file = buildpack_name + '-v1.2.3.zip'
+    buildpack_path = 'apps/' + buildpack_file
+    mock_cf_cli.buildpacks.return_value = [BuildpackDescription(buildpack_name, '1', 'true',
+                                                                'false', buildpack_file)]
+    assert not deployer._check_buildpack_needed(buildpack_name, buildpack_path)
+
+
+def test_setup_existing_buildpack(monkeypatch, mock_get_file_path):
+    monkeypatch.setattr('apployer.deployer._check_buildpack_needed', MagicMock(return_value=False))
+    deployer.setup_buildpack('some-buildpack-name', 'release/tools')
+
+
+def test_deploy_appstack(monkeypatch, mock_upsi_deployer, mock_setup_broker):
+    # arrange - data
+    apps = [AppConfig('app1', register_in='application-broker'),
+            AppConfig('application-broker')]
+    user_provided_services = [UserProvidedService('upsi-name', {'a': 'b'})]
+    brokers = [BrokerConfig('broker-name', 'http://broker-url', 'username', 'password')]
+    buildpacks = ['fake-buildpack']
+    domain = 'fake-domain'
+    appstack = AppStack(apps, user_provided_services, brokers,
+                        buildpacks, domain)
+
+    cf_login_data = CfInfo('https://api.example.com', 'password')
+    artifacts_path = 'some-fake-path'
+    app_guids = ['app1-guid', 'application-broker-guid']
+
+    # arrange - mocks
+    mock_prep_org_and_space = MagicMock()
+    monkeypatch.setattr('apployer.deployer._prepare_org_and_space', mock_prep_org_and_space)
+    mock_upsi_deployer.return_value.deploy.return_value = [app_guids[0]]
+
+    mock_setup_buildpack = MagicMock()
+    monkeypatch.setattr('apployer.deployer.setup_buildpack', mock_setup_buildpack)
+
+    mock_app_deployer_init, mock_app_deployer, mock_restart_apps = [MagicMock() for _ in range(3)]
+    monkeypatch.setattr('apployer.deployer.AppDeployer', mock_app_deployer_init)
+    mock_app_deployer_init.return_value = mock_app_deployer
+    mock_app_deployer.deploy.side_effect = ([app_guids[1]], [])
+    monkeypatch.setattr('apployer.deployer._restart_apps', mock_restart_apps)
+
+    mock_register_in_app_broker = MagicMock()
+    monkeypatch.setattr('apployer.deployer.register_in_application_broker',
+                        mock_register_in_app_broker)
+
+    # act
+    deployer.deploy_appstack(cf_login_data, appstack,
+                             artifacts_path, deployer.UPGRADE_STRATEGY)
+
+    # assert
+    mock_prep_org_and_space.assert_called_with(cf_login_data)
+    mock_upsi_deployer.assert_called_with(user_provided_services[0])
+    mock_setup_broker.assert_called_with(brokers[0])
+    mock_setup_buildpack.assert_called_with(buildpacks[0], artifacts_path)
+
+    app_deployer_init_calls = [mock.call(apps[0], deployer.DEPLOYER_OUTPUT),
+                               mock.call(apps[1], deployer.DEPLOYER_OUTPUT)]
+    assert app_deployer_init_calls == mock_app_deployer_init.call_args_list
+    app_deployer_deploy_calls = [mock.call(artifacts_path, deployer.UPGRADE_STRATEGY)
+                                 for _ in range(2)]
+    assert app_deployer_deploy_calls == mock_app_deployer.deploy.call_args_list
+
+    mock_restart_apps.assert_called_with(appstack, app_guids)
+    mock_register_in_app_broker.assert_called_with(apps[0], apps[1], domain,
+                                                   deployer.DEPLOYER_OUTPUT, artifacts_path)
+
+
+def test_register_in_app_broker(monkeypatch, mock_check_call):
+    # arrange
+    app_env = {'display_name': 'blabla',
+               'description': 'bleble',
+               'image_url': 'lalalala'}
+    some_app = AppConfig('app1', register_in='application-broker',
+                         app_properties={'env': app_env})
+
+    app_broker_env = {'AUTH_USER': 'some user',
+                      'AUTH_PASS': 'some password'}
+    app_broker = AppConfig('application-broker', app_properties={'env': app_broker_env})
+
+    domain = 'fake-domain'
+    artifacts_path = 'some-fake-path'
+    unpacked_apps_dir = 'some/nonexisting/path'
+
+    mock_app_deployer_init, mock_app_deployer = [MagicMock() for _ in range(2)]
+    monkeypatch.setattr('apployer.deployer.AppDeployer', mock_app_deployer_init)
+    mock_app_deployer_init.return_value = mock_app_deployer
+
+    # act
+    deployer.register_in_application_broker(some_app, app_broker, domain,
+                                            unpacked_apps_dir, artifacts_path)
+
+    # assert
+    mock_app_deployer_init.assert_called_with(app_broker, unpacked_apps_dir)
+    mock_app_deployer.prepare.assert_called_with(artifacts_path)
+    # This doesn't check much - oh well. A thorough integration test would be useful.
+    assert mock_check_call.call_args_list
+
+
+def test_prepare_org_and_space(mock_cf_cli):
+    api_uri = 'https://api.example.com'
+    password = 'some password'
+    user = 'some user'
+    org = 'just some organization'
+    space = 'a space from the organization above'
+    ssl_validation = True
+    cf_login_data = CfInfo(api_uri, password, user, org, space, ssl_validation)
+
+    deployer._prepare_org_and_space(cf_login_data)
+
+    mock_cf_cli.api.assert_called_with(api_uri, ssl_validation)
+    mock_cf_cli.auth.assert_called_with(user, password)
+    mock_cf_cli.create_org.assert_called_with(org)
+    mock_cf_cli.create_space.assert_called_with(space, org)
+    mock_cf_cli.target.assert_called_with(org, space)
+
+
+def test_restart_apps(mock_cf_api, mock_cf_cli):
+    apps = [AppConfig('app_1'), AppConfig('app_2'),
+            AppConfig('app_3', push_options=PushOptions('--no-start'))]
+    app_guids = ['app_1_guid', 'app_2_guid', 'app_3_guid']
+    appstack = AppStack(apps)
+    mock_cf_api.get_app_name.side_effect = [app.name for app in apps]
+
+    deployer._restart_apps(appstack, app_guids)
+
+    mock_cf_cli.restart.call_args_list == [mock.call(apps[0].name), mock.call(apps[1].name)]
