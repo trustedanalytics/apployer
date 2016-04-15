@@ -439,6 +439,8 @@ apps:
     service_instances:
     - name: kerberos-instance
       plan: shared
+    - name: kerberos-for-atk
+      plan: shared
 
 - name: smtp-broker
   artifact_name: wssb
