@@ -600,9 +600,6 @@ brokers:
   - name: operations-store
     plan: free
     label: mongodb26
-  - name: rstudio-example
-    plan: free
-    label: rstudio
   - name: ipython-example
     plan: free
     label: ipython

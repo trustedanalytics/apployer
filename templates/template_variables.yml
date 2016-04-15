@@ -189,7 +189,7 @@ broker_system_user_password: cf1
 ### TO REMOVE after DPNG-2306 ###############
 external_tool_arcadia: "false"
 external_tool_hue: "true"
-external_tool_rstudio: "true"
+external_tool_rstudio: "false"
 external_tool_gearpump: "true"
 external_tool_h2o: "false"
 #############################################
