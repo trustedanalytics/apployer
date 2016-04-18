@@ -70,15 +70,12 @@ def deploy_appstack(cf_login_data, filled_appstack, artifacts_path, push_strateg
     for buildpack in filled_appstack.buildpacks:
         setup_buildpack(buildpack, artifacts_path)
 
+    names_to_apps = {app.name: app for app in filled_appstack.apps}
+
     for app in filled_appstack.apps:
         app_deployer = AppDeployer(app, DEPLOYER_OUTPUT)
         affected_apps = app_deployer.deploy(artifacts_path, push_strategy)
         apps_to_restart.extend(affected_apps)
-
-    _restart_apps(filled_appstack, apps_to_restart)
-
-    names_to_apps = {app.name: app for app in filled_appstack.apps}
-    for app in filled_appstack.apps:
         if app.register_in:
             # FIXME this universal mechanism is kind of pointless, because we can only do
             # registering in application-broker. Even we made "register.sh" in the registrator app
@@ -91,7 +88,7 @@ def deploy_appstack(cf_login_data, filled_appstack, artifacts_path, push_strateg
                 filled_appstack.domain,
                 DEPLOYER_OUTPUT,
                 artifacts_path)
-
+    _restart_apps(filled_appstack, apps_to_restart)
     _log.info('DEPLOYMENT FINISHED')
 
 

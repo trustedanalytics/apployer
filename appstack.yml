@@ -52,6 +52,7 @@ apps:
 # BROKERS
 
 - name: application-broker
+  order: 2
   app_properties:
     buildpack: go_buildpack
     env:
@@ -69,6 +70,7 @@ apps:
           url: http://app-dependency-discoverer.{{ apps_domain }}
 
 - name: gearpump-broker
+  order: -1
   app_properties:
     env:
       BASE_GUID: 1ebaebc7-e344-4cb9-ad18-e29901386e04
