@@ -87,16 +87,15 @@ apps:
     auth_username: '{{ gearpump_broker_user }}'
     auth_password: '{{ gearpump_broker_user_pass }}'
 
-#To be uncommented after finishing: DPNG-4038
-#- name: h2o-broker
-#  app_properties:
-#    env:
-#      USER_PASSWORD: '{{ h2o_broker_user_pass }}'
-#  broker_config:
-#    name: h2o
-#    url: https://h2o-broker.{{ apps_domain }}
-#    auth_username: '{{ h2o_broker_user }}'
-#    auth_password: '{{ h2o_broker_user_pass }}'
+- name: h2o-broker
+  app_properties:
+    env:
+      USER_PASSWORD: '{{ h2o_broker_user_pass }}'
+  broker_config:
+    name: h2o
+    url: https://h2o-broker.{{ apps_domain }}
+    auth_username: '{{ h2o_broker_user }}'
+    auth_password: '{{ h2o_broker_user_pass }}'
 
 - name: hdfs-broker
   app_properties:
