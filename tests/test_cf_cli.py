@@ -14,8 +14,8 @@
 # limitations under the License.
 #
 
-from mock import call
 import mock
+from mock import call
 import pytest
 
 from .fake_cli_outputs import GET_ENV_SUCCESS, GET_SERVICE_INFO_SUCCESS
@@ -214,7 +214,18 @@ def test_create_space(mock_popen):
 
     cf_cli.create_space(space_name, org_name)
 
+@mock.patch('subprocess.check_output')
+def test_get_brokers(check_output_mock):
+    cmd_output = """Getting service brokers as admin...
 
+name                 url
+application-broker   http://application-broker.example.com
+cdh                  http://cdh-broker.example.com
+"""
+    check_output_mock.return_value = cmd_output
+
+    assert cf_cli.service_brokers() == {'application-broker', 'cdh'}
+    
 @mock.patch('subprocess.check_output')
 def test_get_buildpacks(check_output_mock):
     cmd_output = """Getting buildpacks...

@@ -81,6 +81,7 @@ def mock_setup_broker(monkeypatch):
 
 def test_app_deploy(app_deployer, mock_upsi_deployer, mock_setup_broker):
     artifacts_location = 'some/fake/location'
+    is_dry_run = True
     is_push_needed = True
     broker = BrokerConfig('name', 'url', 'user', 'pass')
     app_deployer.app.broker_config = broker
@@ -92,17 +93,17 @@ def test_app_deploy(app_deployer, mock_upsi_deployer, mock_setup_broker):
 
     mock_upsi_deployer.return_value.deploy.return_value = apps_to_restart
 
-    assert app_deployer.deploy(artifacts_location) == apps_to_restart
+    assert app_deployer.deploy(artifacts_location, is_dry_run) == apps_to_restart
 
     mock_push_app.assert_called_with(artifacts_location, is_push_needed)
     mock_upsi_deployer.assert_called_with(app_deployer.app.user_provided_services[0])
     mock_setup_broker.assert_called_with(broker)
-    mock_execute_post_command.assert_called_with()
+    mock_execute_post_command.assert_called_with(is_dry_run)
 
 
 def test_execute_post_command(app_deployer, mock_check_call):
-
-    app_deployer._execute_post_command()
+    is_dry_run = False
+    app_deployer._execute_post_command(is_dry_run)
     mock_check_call.assert_called_with('some evil --command', shell=True)
 
 
@@ -217,19 +218,21 @@ def mock_enable_broker_access(monkeypatch):
 
 def test_setup_broker_new(broker, mock_enable_broker_access,
                           mock_setup_service, mock_cf_cli):
-    mock_cf_cli.update_service_broker.side_effect = CommandFailedError
+    mock_cf_cli.service_brokers.return_value = {'no', 'broker', 'that', 'we', 'want'}
 
     deployer.setup_broker(broker)
 
     mock_cf_cli.create_service_broker.assert_called_with(broker.name, broker.auth_username,
                                                          broker.auth_password, broker.url)
     mock_enable_broker_access.assert_called_with(broker)
+    assert mock_cf_cli.service_brokers.call_args_list
     assert mock.call(broker, broker.service_instances[0]) in mock_setup_service.call_args_list
     assert mock.call(broker, broker.service_instances[1]) in mock_setup_service.call_args_list
 
 
 def test_setup_broker_update(mock_cf_cli, mock_setup_service, mock_enable_broker_access):
     broker = BrokerConfig('some-name', 'https://some-name.example.com', 'username', 'password')
+    mock_cf_cli.service_brokers.return_value = {broker.name}
 
     deployer.setup_broker(broker)
 
@@ -421,6 +424,7 @@ def test_deploy_appstack(monkeypatch, mock_upsi_deployer, mock_setup_broker):
     cf_login_data = CfInfo('https://api.example.com', 'password')
     artifacts_path = 'some-fake-path'
     app_guids = ['app1-guid', 'application-broker-guid']
+    is_dry_run = False
 
     # arrange - mocks
     mock_prep_org_and_space = MagicMock()
@@ -444,8 +448,8 @@ def test_deploy_appstack(monkeypatch, mock_upsi_deployer, mock_setup_broker):
                         mock_register_in_app_broker)
 
     # act
-    deployer.deploy_appstack(cf_login_data, appstack,
-                             artifacts_path, deployer.UPGRADE_STRATEGY)
+    deployer.deploy_appstack(cf_login_data, appstack, artifacts_path,
+                             is_dry_run, deployer.UPGRADE_STRATEGY)
 
     # assert
     mock_prep_org_and_space.assert_called_with(cf_login_data)
@@ -457,13 +461,29 @@ def test_deploy_appstack(monkeypatch, mock_upsi_deployer, mock_setup_broker):
     app_deployer_init_calls = [mock.call(apps[0], deployer.DEPLOYER_OUTPUT),
                                mock.call(apps[1], deployer.DEPLOYER_OUTPUT)]
     assert app_deployer_init_calls == mock_app_deployer_init.call_args_list
-    app_deployer_deploy_calls = [mock.call(artifacts_path, deployer.UPGRADE_STRATEGY)
+    app_deployer_deploy_calls = [mock.call(artifacts_path, is_dry_run, deployer.UPGRADE_STRATEGY)
                                  for _ in range(2)]
     assert app_deployer_deploy_calls == mock_app_deployer.deploy.call_args_list
 
     mock_restart_apps.assert_called_with(appstack, app_guids)
     mock_register_in_app_broker.assert_called_with(apps[0], apps[1], domain,
                                                    deployer.DEPLOYER_OUTPUT, artifacts_path)
+
+
+def test_deploy_appstack_dry_run(monkeypatch):
+    fake_cf_login, fake_appstack, fake_artifacts_path, fake_is_dry_run, fake_strategy = 1, 2, 3, True, 4
+    mock_do_deploy = MagicMock()
+    monkeypatch.setattr('apployer.deployer._do_deploy', mock_do_deploy)
+    real_cf_cli = deployer.cf_cli
+    real_register_in_app_broker = deployer.register_in_application_broker
+
+    deployer.deploy_appstack(fake_cf_login, fake_appstack, fake_artifacts_path,
+                             fake_is_dry_run, fake_strategy)
+
+    mock_do_deploy.assert_called_with(fake_cf_login, fake_appstack,
+                                      fake_artifacts_path, fake_is_dry_run, fake_strategy)
+    assert deployer.cf_cli is real_cf_cli
+    assert deployer.register_in_application_broker is real_register_in_app_broker
 
 
 def test_register_in_app_broker(monkeypatch, mock_check_call):

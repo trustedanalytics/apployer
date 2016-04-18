@@ -91,7 +91,7 @@ def bind_service(app_name, instance_name):
 def buildpacks():
     """
     Returns:
-        list[`BuildpackDescription`]: A list of buildpacks on the environment.
+        list[`BuildpackDescription`]: A list of buildpacks in the environment.
     """
     out = get_command_output([CF, 'buildpacks'])
     buildpack_lines = out.splitlines()[3:]
@@ -285,6 +285,17 @@ def service(service_name):
         str: Service instance info.
     """
     return get_command_output([CF, 'service', service_name])
+
+
+def service_brokers():
+    """
+    Returns:
+        set[str]: A set of brokers (their names) in the environment.
+                  Unnecessary text such as headers and empty line are filter out.
+    """
+    out = get_command_output([CF, 'service-brokers'])
+    broker_lines = out.splitlines()[3:]
+    return set([line.split()[0] for line in broker_lines])
 
 
 def update_buildpack(buildpack_name, buildpack_path):

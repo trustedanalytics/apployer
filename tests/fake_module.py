@@ -20,6 +20,7 @@ Fake module for testing substitution of cf_cli module to a dry run version.
 
 
 FUNC_D_RETURN = "I'm the output of a function that shouldn't be replaced."
+FUNC_E_RETURN = "I'm the output of another function that shouldn't be replaced."
 
 
 def some_function_a(param_a_1, param_a_2):
@@ -39,4 +40,4 @@ def some_function_d():
 
 
 def _some_function_e():
-    print("I'm a protected function.")
+    return FUNC_E_RETURN

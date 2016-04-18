@@ -31,7 +31,7 @@ from pkg_resources import parse_version
 import yaml
 
 import apployer.app_file as app_file
-from apployer import cf_cli, cf_api
+from apployer import cf_cli, cf_api, dry_run
 from .cf_cli import CommandFailedError
 
 _log = logging.getLogger(__name__) #pylint: disable=invalid-name
@@ -46,9 +46,7 @@ DEPLOYER_OUTPUT = 'apployer_out'
 
 SG_RULES_FILENAME = 'set-access.json'
 
-
-# TODO add option of dry run that switches all cf_cli commands to stubs
-def deploy_appstack(cf_login_data, filled_appstack, artifacts_path, push_strategy):
+def deploy_appstack(cf_login_data, filled_appstack, artifacts_path, is_dry_run, push_strategy):
     """Deploys the appstack to Cloud Foundry.
 
     Args:
@@ -57,6 +55,36 @@ def deploy_appstack(cf_login_data, filled_appstack, artifacts_path, push_strateg
         filled_appstack (`apployer.appstack.AppStack`): Expanded appstack filled with configuration
             extracted from a live TAP environment.
         artifacts_path (str): Path to a directory containing application artifacts (zips).
+        push_strategy (str): Strategy for pushing applications.
+        is_dry_run (bool): Is this a dry run? If set to True, no changes (except for creating org
+            and space) will be introduced to targeted Cloud Foundry.
+    """
+    global cf_cli, register_in_application_broker #pylint: disable=C0103,W0603,W0601
+
+    if is_dry_run:
+        normal_cf_cli = cf_cli
+        cf_cli = dry_run.get_dry_run_cf_cli()
+        normal_register_in_app_broker = register_in_application_broker
+        register_in_application_broker = dry_run.get_dry_function(register_in_application_broker)
+    try:
+        _do_deploy(cf_login_data, filled_appstack, artifacts_path, is_dry_run, push_strategy)
+    finally:
+        if is_dry_run:
+            cf_cli = normal_cf_cli
+            register_in_application_broker = normal_register_in_app_broker
+
+
+def _do_deploy(cf_login_data, filled_appstack, artifacts_path, is_dry_run, push_strategy):
+    """Iterates over each CF entity defined in filled_appstack
+    and executes CF commands necessery for deployment.
+
+    Args:
+        cf_login_data (`apployer.cf_cli.CfInfo`): Credentials and addresses needed to log into
+            Cloud Foundry.
+        filled_appstack (`apployer.appstack.AppStack`): Expanded appstack filled with configuration
+            extracted from a live TAP environment.
+        artifacts_path (str): Path to a directory containing application artifacts (zips).
+        is_dry_run (bool): When enabled then all write commands to CF will be only logged.
         push_strategy (str): Strategy for pushing applications.
     """
     _prepare_org_and_space(cf_login_data)
@@ -84,7 +112,7 @@ def deploy_appstack(cf_login_data, filled_appstack, artifacts_path, push_strateg
     for app in filled_appstack.apps:
         if is_push_enabled(app.push_if):
             app_deployer = AppDeployer(app, DEPLOYER_OUTPUT)
-            affected_apps = app_deployer.deploy(artifacts_path, push_strategy)
+            affected_apps = app_deployer.deploy(artifacts_path, is_dry_run, push_strategy)
             apps_to_restart.extend(affected_apps)
             if app.register_in:
                 # FIXME this universal mechanism is kind of pointless, because we can only do
@@ -128,7 +156,8 @@ def is_push_enabled(value):
     raise Exception("Incorrect type: " + type(value) + " Should be bool or str.")
 
 
-def register_in_application_broker(registered_app, application_broker, app_domain,
+def register_in_application_broker(registered_app, # pylint: disable=function-redefined
+                                   application_broker, app_domain,
                                    unpacked_apps_dir, artifacts_location):
     """Registers an application in another application that provides some special functionality.
     E.g. there's the application-broker app that registers another application as a broker.
@@ -184,13 +213,12 @@ def setup_broker(broker):
     """
     _log.info('Setting up broker %s...', broker.name)
     broker_args = [broker.name, broker.auth_username, broker.auth_password, broker.url]
-    try:
-        cf_cli.update_service_broker(*broker_args)
-    except CommandFailedError as ex:
-        _log.debug(str(ex))
-        _log.info("Updating a broker (%s) failed, assuming it doesn't exist yet. "
-                  "Gonna create it now...", broker.name)
+    if broker.name not in cf_cli.service_brokers():
+        _log.info("Broker %s doesn't exist. Gonna create it now...", broker.name)
         cf_cli.create_service_broker(*broker_args)
+    else:
+        _log.info("Broker %s exists. Will update it...", broker.name)
+        cf_cli.update_service_broker(*broker_args)
 
     _enable_broker_access(broker)
 
@@ -401,7 +429,7 @@ class AppDeployer(object):
         self.app = app
         self.output_path = output_path
 
-    def deploy(self, artifacts_location, push_strategy=UPGRADE_STRATEGY):
+    def deploy(self, artifacts_location, is_dry_run, push_strategy=UPGRADE_STRATEGY):
         """Sets up the application in Cloud Foundry. This also sets up the broker (if one is
         defined) and user provided services (if they exist) defined in application's configuration
         in appstack. Any changes will be made only when needed.
@@ -409,6 +437,7 @@ class AppDeployer(object):
         Args:
             artifacts_location (str): Path to a directory containing artifacts in ZIP format.
                 There shouldn't be any non-artifact ZIP files there.
+            is_dry_run (bool): When enabled then all write commands to CF will be only logged.
             push_strategy (str): Strategy for pushing the application.
 
         Returns:
@@ -426,8 +455,8 @@ class AppDeployer(object):
             affected_apps = UpsiDeployer(service).deploy()
             apps_to_restart.extend(affected_apps)
 
-        if is_push_needed:
-            self._execute_post_command()
+        if is_push_needed and self.app.push_options.post_command:
+            self._execute_post_command(is_dry_run)
 
         if self.app.broker_config:
             setup_broker(self.app.broker_config)
@@ -512,8 +541,11 @@ class AppDeployer(object):
                 .format(self.app.name))
         return app_version_line.split()[1]
 
-    def _execute_post_command(self):
-        if self.app.push_options.post_command:
+    def _execute_post_command(self, is_dry_run):
+        if is_dry_run:
+            _log.info('DRY RUN: App %s has post-push commands, executing following command %s\n',
+                      self.app.name, self.app.push_options.post_command)
+        else:
             _log.info('App %s has post-push commands, executing...', self.app.name)
             subprocess.check_call(self.app.push_options.post_command, shell=True)
 

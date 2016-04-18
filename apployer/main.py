@@ -117,6 +117,12 @@ def expand(appstack_file, artifacts_location, expanded_appstack_location):
                    "'UPGRADE': deploy everything that doesn't exist in the environment or is in "
                    "lower version on the environment than in the filled appstack.\n"
                    "'PUSH_ALL': deploy everything from filled appstack.'")
+@click.option('--dry-run', is_flag=True,
+              help="Does a dry run of the deployment. No changes will be introduced to the "
+                   "Cloud Foundry environment, except for creating org and space if those don't "
+                   "already exist. "
+                   "Each action that the deployment would perform is logged.")
+
 def deploy( #pylint: disable=too-many-arguments
         artifacts_location,
         cf_api_endpoint,
@@ -128,7 +134,8 @@ def deploy( #pylint: disable=too-many-arguments
         filled_appstack,
         expanded_appstack,
         appstack,
-        push_strategy):
+        push_strategy,
+        dry_run):
     """
     Deploy the whole appstack.
     This should be run from environment's bastion to reduce chance of errors.
@@ -154,7 +161,7 @@ def deploy( #pylint: disable=too-many-arguments
                      org=cf_org, space=cf_space)
     filled_appstack = _get_filled_appstack(appstack, expanded_appstack, filled_appstack,
                                            fetcher_config, artifacts_location)
-    deploy_appstack(cf_info, filled_appstack, artifacts_location, push_strategy)
+    deploy_appstack(cf_info, filled_appstack, artifacts_location, dry_run, push_strategy)
 
     _log.info('Deployment time: %s', _seconds_to_time(time.time() - start_time))
 
@@ -311,12 +318,13 @@ def _seconds_to_time(seconds):
 
 
 # TODO primary
-# --dry-run (deployer functions should be in a class, some methods need to be overwritten,
-#   need to check for existance first before trying to update/create services)
-# make installable and testable for py26 (no networkx)
-# Brokers serving instances that hold no data (like all WSSB brokers) can be marked as "recreatable"
-#   or something. Then, they could be recreated and rebound to apps when WSSB configuration changes.
-#   Right now it won't happen, because there's no universal way of recreating a service instance.
+# Make installable and testable for py26. This will require to make an "extra feature" (see
+#   setuptools docs on "declaring extras") out of appstack expansion.
+#   Only dependency for this feature would be networkx.
+# Brokers serving instances that hold no data (like all WSSB brokers) can be marked
+#   as "recreatable" or something. Then, they could be recreated and rebound to apps when WSSB
+#   configuration changes. Right now it won't happen, because there's no universal way of
+#   recreating a service instance.
 # add app timeout parameter (default should be 180 seconds), think about enxanced timeout and
 #   differentiation between continuous crash and timeout
 # make all docstrings conform to Google standard
