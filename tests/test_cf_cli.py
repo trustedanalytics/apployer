@@ -240,3 +240,20 @@ def test_get_service_guid(mock_popen):
     mock_popen.set_command('cf service --guid {}'.format(service_name), stdout=cmd_output)
 
     assert cf_cli.get_service_guid(service_name) == service_guid
+
+
+def test_create_security_group(mock_popen):
+    security_group_name = 'test_security_group'
+    security_group_config_json_path = 'fake/json/path.json'
+    mock_popen.set_command('cf create-security-group {} {}'.format(security_group_name,
+                                                                   security_group_config_json_path))
+    cf_cli.create_security_group(security_group_name, security_group_config_json_path)
+
+
+def test_bind_security_group(mock_popen):
+    security_group_name = 'test_security_group'
+    org_name = 'test-org'
+    space_name = 'test-space'
+    mock_popen.set_command('cf bind-security-group {} {} {}'.format(security_group_name, org_name, space_name))
+
+    cf_cli.bind_security_group(security_group_name, org_name, space_name)

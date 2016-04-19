@@ -19,6 +19,7 @@ Deduction of some configuration variables based on those already fetched.
 """
 
 THRIFT_SERVER_URL = 'thrift_server_url'
+HIVE_SERVER_URL = 'hive_server_url'
 
 
 def deduce_final_configuration(fetched_config):
@@ -31,17 +32,20 @@ def deduce_final_configuration(fetched_config):
     """
     final_config = fetched_config.copy()
     final_config[THRIFT_SERVER_URL] = _get_thrift_server_url(final_config)
+    final_config[HIVE_SERVER_URL] = _get_hive_server_url(final_config)
     return final_config
 
+def _get_hive_server_url(config):
+    if config['kerberos_host']:
+        return ('jdbc:hive2://{namenode_internal_host}:10000/default;'
+                'principal=hive/{namenode_internal_host}@{kerberos_realm};'
+                'auth=kerberos'.format(**config))
+    else:
+        return 'jdbc:hive2://{namenode_internal_host}:10000/'.format(**config)
 
 def _get_thrift_server_url(config):
     if not config['external_tool_arcadia']:
-        if config['kerberos_host']:
-            return ('jdbc:hive2://{namenode_internal_host}:10000/default;'
-                    'principal=hive/{namenode_internal_host}@{kerberos_realm};'
-                    'auth=kerberos'.format(**config))
-        else:
-            return 'jdbc:hive2://{{ namenode_internal_host }}:10000/'.format(**config)
+        return _get_hive_server_url(config)
     else:
         if config['kerberos_host']:
             return ('jdbc:hive2://{arcadia_node}:31050/;'

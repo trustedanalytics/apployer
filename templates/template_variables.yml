@@ -21,6 +21,9 @@ CDH_cluster_name: CDH-cluster
 # username of the Cloud Foundry admin
 cf_admin_username: admin
 
+# version of TAP
+platform_version: 0.7.0
+
 # version of CF CLI compatiple with the platform
 cf_cli_version: 6.12.4
 
@@ -66,9 +69,6 @@ app_dep_disc_user: admin
 # username for basic auth in App dependency discoverer
 app_dep_disc_pass: password
 
-# UAA client password for atk. Use quoted empty string to leave it unset.
-atk_client_pass: "''"
-
 # ATK client name
 atk_client_name: 'atk-client'
 
@@ -91,8 +91,8 @@ gearpump_broker_user: user
 gearpump_broker_user_pass: awhile-scary-melting-globe
 
 # organization and space, where core TAP applications will be pushed
-core_org_name: seedorg
-core_space_name: seedspace
+core_org_name: trustedanalytics
+core_space_name: platform
 
 # gearpump credentials and settings
 gearpump_broker_user_pass: randompassword
@@ -159,6 +159,12 @@ yarm_broker_user: user
 # password that the YARN broker will use
 yarn_broker_user_pass: little-gold-bubbles-heavenly
 
+# username that the HIVE broker will use
+hive_broker_user: user
+
+# password that the HIVE broker will use
+hive_broker_user_pass: little-platinum-bubbles-heavenly
+
 # username that the KERBEROS broker will use
 kerberos_broker_user: admin
 
@@ -186,9 +192,16 @@ broker_system_user: cf
 # password that the all broker will use to login
 broker_system_user_password: cf1
 
-### TO REMOVE after DPNG-2306 ###############
-external_tool_arcadia: "false"
-external_tool_hue: "true"
+kubernetes_broker_user: admin
+
+kubernetes_broker_password: password
+
+demiurge_username: admin
+
+demiurge_password: admin
+
+quay_io_url: quay.io
+
 external_tool_rstudio: "false"
 external_tool_gearpump: "true"
 external_tool_h2o: "false"
@@ -201,6 +214,9 @@ cf_admin_password:
 
 # client password of the Cloud Foundry UAA admin
 cf_admin_client_password:
+
+# UAA client password for atk. Use quoted empty string to leave it unset.
+atk_client_pass:
 
 # hostname of any h2o worker node, provide this value if other than cdh-worker-0
 h2o_node:
@@ -232,6 +248,7 @@ h2o_provisioner_port:
 import_hadoop_conf_hbase:
 import_hadoop_conf_hdfs:
 import_hadoop_conf_yarn:
+import_hadoop_conf_hive:
 
 # *** set only for Kerberos-enabled deployment ***
 # hostname of the Kerberos Key Distribution Center, should be the same as CDH Manager machine
@@ -272,3 +289,33 @@ smtp_protocol:
 
 # also known as Hive URL. This value changes depending on presence of Arcadia and Kerberos
 thrift_server_url:
+
+region:
+
+kubernetes_aws_access_key_id:
+
+kubernetes_aws_secret_access_key:
+
+vpc:
+
+key_name:
+
+consul_dc:
+
+consul_join:
+
+kubernetes_subnet:
+
+kubernetes_subnet_cidr:
+
+arcadia_port:
+
+external_tool_arcadia:
+
+hue_port:
+
+external_tool_hue:
+
+quay_io_username:
+
+quay_io_password:

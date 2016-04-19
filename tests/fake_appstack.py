@@ -17,7 +17,7 @@
 import copy
 
 from apployer.appstack import (AppConfig, AppStack, BrokerConfig,
-                               ServiceInstance, UserProvidedService)
+                               SecurityGroup, ServiceInstance, UserProvidedService)
 
 
 def _services_to_dicts(service_list):
@@ -39,7 +39,8 @@ TEST_APP_X = AppConfig(
         'app_X',
         app_properties=TEST_APP_X_APP_PROPERTIES,
         user_provided_services=TEST_APP_X_USER_PROVIDED_SERVICES,
-        register_in='app_Y')
+        register_in='app_Y',
+        push_if=False)
 
 TEST_APP_Y_BROKER_CONFIG = BrokerConfig(
     'Y_broker',
@@ -48,10 +49,13 @@ TEST_APP_Y_BROKER_CONFIG = BrokerConfig(
     'password',
     service_instances=[ServiceInstance('Y_1', 'shared')])
 
-TEST_APP_Y = AppConfig('app_Y', broker_config=TEST_APP_Y_BROKER_CONFIG)
+TEST_APP_Y = AppConfig('app_Y', broker_config=TEST_APP_Y_BROKER_CONFIG, push_if=True)
 
 TEST_APPSTACK_USER_PROVIDED_SERVICES = [
     UserProvidedService('custom_serv', {'url': 'http://custom_serv.example.com'})]
+
+TEST_SECURITY_GROUP = SecurityGroup(name='test_security_group', protocol='tcp',
+                                    destination='10.10.10.0/24', ports='1-50')
 
 BUILDPACK_NAME = 'example-buildpack'
 
@@ -59,6 +63,7 @@ TEST_APPSTACK_DICT = {
     'apps': [
         {
             'name': 'app_X',
+            'push_if': False,
             'app_properties': TEST_APP_X_APP_PROPERTIES,
             'user_provided_services': _services_to_dicts(TEST_APP_X_USER_PROVIDED_SERVICES),
             'register_in': 'app_Y',
@@ -70,6 +75,7 @@ TEST_APPSTACK_DICT = {
     ],
     'user_provided_services': _services_to_dicts(TEST_APPSTACK_USER_PROVIDED_SERVICES),
     'buildpacks': [BUILDPACK_NAME],
+    'security_groups': [TEST_SECURITY_GROUP.to_dict()]
 }
 
 _new_appstack_dict = copy.deepcopy(TEST_APPSTACK_DICT)
@@ -95,6 +101,7 @@ TEST_APPSTACK_WITH_MANIFESTS = AppStack.from_appstack_dict({
     'apps': [
         {
             'name': 'app_X',
+            'push_if': False,
             'app_properties': {
                 'name': 'app_X',
                 'env': {
@@ -115,6 +122,7 @@ TEST_APPSTACK_WITH_MANIFESTS = AppStack.from_appstack_dict({
         },
         {
             'name': 'app_Y',
+            'push_if': True,
             'app_properties': {
                 'name': 'app_Y',
                 'env': {
@@ -144,4 +152,11 @@ TEST_APPSTACK_WITH_MANIFESTS = AppStack.from_appstack_dict({
         }
     }],
     'buildpacks': [BUILDPACK_NAME],
+    'security_groups': [{
+        'name': 'test_security_group',
+        'ports': '1-50',
+        'protocol': 'tcp',
+        'destination': '10.10.10.0/24',
+        'push_if': True
+    }]
 })

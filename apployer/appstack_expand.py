@@ -184,7 +184,8 @@ def _substitute_services(
             # be created before first application is deployed.
             pass
         else:
-            raise MalformedAppStackError("Service instance isn't defined anywhere: " + service_name)
+            raise MalformedAppStackError("Service instance: " + service_name + " for: " +
+                                         dependency[0].artifact_name + " isn't defined anywhere!")
 
     final_graph.remove_nodes_from(service_nodes)
     return final_graph
@@ -267,10 +268,20 @@ def _apply_app_order_parameter(sorted_apps):
     for app in ordered_apps:
         final_apps.remove(app)
 
-    # We need to have this sorted according to ascending "order" field.
+    # We need to recalculate (normalize) negative orders.
+    # They're no longer valid after changing size of final_apps by removing some apps.
+    for app in ordered_apps:
+        app.normalized_order = app.order + len(sorted_apps) if app.order < 0 else app.order
+
+    # We need to have this sorted according to ascending "normalized_order" field.
     # Inserting application to in the list shifts all after it.
-    sorted_ordered_apps = sorted(ordered_apps, key=lambda app: app.order)
+    sorted_ordered_apps = sorted(ordered_apps, key=lambda app: app.normalized_order)
 
     for app in sorted_ordered_apps:
-        final_apps.insert(app.order, app)
+        final_apps.insert(app.normalized_order, app)
+
+    # Cleanup after order normalization
+    for app in ordered_apps:
+        del app.normalized_order
+
     return final_apps

@@ -24,7 +24,7 @@ import yaml
 
 from apployer import deployer
 from apployer.appstack import (AppStack, AppConfig, UserProvidedService, BrokerConfig, PushOptions,
-                               ServiceInstance)
+                               SecurityGroup, ServiceInstance)
 from apployer.cf_cli import CommandFailedError, CfInfo, BuildpackDescription
 
 from .fake_cli_outputs import GET_ENV_SUCCESS
@@ -81,19 +81,29 @@ def mock_setup_broker(monkeypatch):
 
 def test_app_deploy(app_deployer, mock_upsi_deployer, mock_setup_broker):
     artifacts_location = 'some/fake/location'
+    is_push_needed = True
     broker = BrokerConfig('name', 'url', 'user', 'pass')
     app_deployer.app.broker_config = broker
     apps_to_restart = ['some-fake-guid-1', 'some-fake-guid-2']
     mock_push_app = MagicMock()
     app_deployer._push_app = mock_push_app
+    mock_execute_post_command = MagicMock()
+    app_deployer._execute_post_command = mock_execute_post_command
 
     mock_upsi_deployer.return_value.deploy.return_value = apps_to_restart
 
     assert app_deployer.deploy(artifacts_location) == apps_to_restart
 
-    mock_push_app.assert_called_with(artifacts_location, deployer.UPGRADE_STRATEGY)
+    mock_push_app.assert_called_with(artifacts_location, is_push_needed)
     mock_upsi_deployer.assert_called_with(app_deployer.app.user_provided_services[0])
     mock_setup_broker.assert_called_with(broker)
+    mock_execute_post_command.assert_called_with()
+
+
+def test_execute_post_command(app_deployer, mock_check_call):
+
+    app_deployer._execute_post_command()
+    mock_check_call.assert_called_with('some evil --command', shell=True)
 
 
 def test_get_app_version(app_deployer, mock_cf_cli):
@@ -179,12 +189,10 @@ def test_push_app(app_deployer, mock_check_call, mock_cf_cli):
     mock_check_call.called_with(post_commands.split())
 
 
-def test_push_app_not_needed(app_deployer, monkeypatch):
-    mock_check_call = MagicMock()
-    app_deployer._check_push_needed = lambda _: False
-    monkeypatch.setattr('apployer.deployer.subprocess.check_call', mock_check_call)
-
-    app_deployer._push_app('/bla/release/apps', 'some-fake-strategy')
+def test_push_app_not_needed(app_deployer, mock_cf_cli, monkeypatch):
+    is_push_needed = False
+    app_deployer._push_app('/bla/release/apps', is_push_needed)
+    mock_cf_cli.push.assert_not_called()
 
 
 @pytest.fixture
@@ -236,12 +244,15 @@ def test_enable_broker_access(broker, mock_cf_cli):
                          ServiceInstance('f', 'g'), ServiceInstance('h', 'i', 'j')]
     broker.service_instances = service_instances
 
+    broker.services = ['x', 'y', 'z']
+
     deployer._enable_broker_access(broker)
 
-    calls = [mock.call('c'), mock.call('j'), mock.call(broker.name)]
+    calls = [mock.call('c'), mock.call('j'), mock.call('x'), mock.call('y'), mock.call('z'),
+             mock.call(broker.name)]
     for call in calls:
         assert call in mock_cf_cli.enable_service_access.call_args_list
-    assert len(mock_cf_cli.enable_service_access.call_args_list) == 3
+    assert len(mock_cf_cli.enable_service_access.call_args_list) == len(calls)
 
 
 def test_enable_broker_access_no_broker_service(broker, mock_cf_cli):
@@ -402,9 +413,10 @@ def test_deploy_appstack(monkeypatch, mock_upsi_deployer, mock_setup_broker):
     user_provided_services = [UserProvidedService('upsi-name', {'a': 'b'})]
     brokers = [BrokerConfig('broker-name', 'http://broker-url', 'username', 'password')]
     buildpacks = ['fake-buildpack']
+    security_groups = [SecurityGroup('sg-name', 'udp', '12.13.14.15/8', '56-139')]
     domain = 'fake-domain'
     appstack = AppStack(apps, user_provided_services, brokers,
-                        buildpacks, domain)
+                        buildpacks, domain, security_groups)
 
     cf_login_data = CfInfo('https://api.example.com', 'password')
     artifacts_path = 'some-fake-path'
@@ -414,6 +426,9 @@ def test_deploy_appstack(monkeypatch, mock_upsi_deployer, mock_setup_broker):
     mock_prep_org_and_space = MagicMock()
     monkeypatch.setattr('apployer.deployer._prepare_org_and_space', mock_prep_org_and_space)
     mock_upsi_deployer.return_value.deploy.return_value = [app_guids[0]]
+
+    mock_setup_security_group = MagicMock()
+    monkeypatch.setattr('apployer.deployer.setup_security_group', mock_setup_security_group)
 
     mock_setup_buildpack = MagicMock()
     monkeypatch.setattr('apployer.deployer.setup_buildpack', mock_setup_buildpack)
@@ -437,6 +452,7 @@ def test_deploy_appstack(monkeypatch, mock_upsi_deployer, mock_setup_broker):
     mock_upsi_deployer.assert_called_with(user_provided_services[0])
     mock_setup_broker.assert_called_with(brokers[0])
     mock_setup_buildpack.assert_called_with(buildpacks[0], artifacts_path)
+    mock_setup_security_group.assert_called_once_with(cf_login_data, security_groups[0])
 
     app_deployer_init_calls = [mock.call(apps[0], deployer.DEPLOYER_OUTPUT),
                                mock.call(apps[1], deployer.DEPLOYER_OUTPUT)]
@@ -509,3 +525,38 @@ def test_restart_apps(mock_cf_api, mock_cf_cli):
     deployer._restart_apps(appstack, app_guids)
 
     mock_cf_cli.restart.call_args_list == [mock.call(apps[0].name), mock.call(apps[1].name)]
+
+
+def test_is_push_enabled():
+
+    true_values = [True, 'true', 'TRUE', 'True']
+    false_values = [False, 'false', 'FALSE', 'False']
+    exception_values = [12, object, None, '', 'bad_string']
+
+    for value in true_values:
+        assert deployer.is_push_enabled(value) is True
+
+    for value in false_values:
+        assert deployer.is_push_enabled(value) is False
+
+    for value in exception_values:
+        with pytest.raises(Exception):
+            deployer.is_push_enabled(value)
+
+
+def test_setup_security_group(mock_cf_cli):
+    api_uri = 'https://api.example.com'
+    password = 'some password'
+    user = 'some user'
+    org = 'just some organization'
+    space = 'a space from the organization above'
+    ssl_validation = True
+    cf_login_data = CfInfo(api_uri, password, user, org, space, ssl_validation)
+
+    security_group = SecurityGroup('sg-name', 'udp', '12.13.14.15/8', '56-139')
+
+    deployer.setup_security_group(cf_login_data, security_group)
+
+    mock_cf_cli.create_security_group.assert_called_with(security_group.name,
+                                                         deployer.SG_RULES_FILENAME)
+    mock_cf_cli.bind_security_group(security_group.name, cf_login_data.org, cf_login_data.space)

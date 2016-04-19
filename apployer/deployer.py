@@ -22,7 +22,7 @@ brokers.
 import glob
 import json
 import logging
-from os import path
+from os import path, remove
 import subprocess
 from zipfile import ZipFile
 
@@ -44,6 +44,8 @@ FINAL_MANIFESTS_FOLDER = 'manifests'
 
 DEPLOYER_OUTPUT = 'apployer_out'
 
+SG_RULES_FILENAME = 'set-access.json'
+
 
 # TODO add option of dry run that switches all cf_cli commands to stubs
 def deploy_appstack(cf_login_data, filled_appstack, artifacts_path, push_strategy):
@@ -60,39 +62,68 @@ def deploy_appstack(cf_login_data, filled_appstack, artifacts_path, push_strateg
     _prepare_org_and_space(cf_login_data)
 
     apps_to_restart = []
+
+    for security_group in filled_appstack.security_groups:
+        if is_push_enabled(security_group.push_if):
+            setup_security_group(cf_login_data, security_group)
+
     for service in filled_appstack.user_provided_services:
-        affected_apps = UpsiDeployer(service).deploy()
-        apps_to_restart.extend(affected_apps)
+        if is_push_enabled(service.push_if):
+            affected_apps = UpsiDeployer(service).deploy()
+            apps_to_restart.extend(affected_apps)
 
     for broker in filled_appstack.brokers:
-        setup_broker(broker)
+        if is_push_enabled(broker.push_if):
+            setup_broker(broker)
 
     for buildpack in filled_appstack.buildpacks:
         setup_buildpack(buildpack, artifacts_path)
 
-    for app in filled_appstack.apps:
-        app_deployer = AppDeployer(app, DEPLOYER_OUTPUT)
-        affected_apps = app_deployer.deploy(artifacts_path, push_strategy)
-        apps_to_restart.extend(affected_apps)
-
-    _restart_apps(filled_appstack, apps_to_restart)
-
     names_to_apps = {app.name: app for app in filled_appstack.apps}
-    for app in filled_appstack.apps:
-        if app.register_in:
-            # FIXME this universal mechanism is kind of pointless, because we can only do
-            # registering in application-broker. Even we made "register.sh" in the registrator app
-            # to be universal, we still need to pass a specific set of arguments to the script.
-            # And those are arguments wanted by the application-broker.
-            registrator_name = app.register_in
-            register_in_application_broker(
-                app,
-                names_to_apps[registrator_name],
-                filled_appstack.domain,
-                DEPLOYER_OUTPUT,
-                artifacts_path)
 
+    for app in filled_appstack.apps:
+        if is_push_enabled(app.push_if):
+            app_deployer = AppDeployer(app, DEPLOYER_OUTPUT)
+            affected_apps = app_deployer.deploy(artifacts_path, push_strategy)
+            apps_to_restart.extend(affected_apps)
+            if app.register_in:
+                # FIXME this universal mechanism is kind of pointless, because we can only do
+                # registering in application-broker. Even we made "register.sh" in the registrator
+                # app to be universal, we still need to pass a specific set of arguments to the
+                # script.
+                # And those are arguments wanted by the application-broker.
+                registrator_name = app.register_in
+                register_in_application_broker(
+                    app,
+                    names_to_apps[registrator_name],
+                    filled_appstack.domain,
+                    DEPLOYER_OUTPUT,
+                    artifacts_path)
+    _restart_apps(filled_appstack, apps_to_restart)
     _log.info('DEPLOYMENT FINISHED')
+
+
+def is_push_enabled(value):
+    """To ensure that value passed is a boolean value, not string (which in appstack.yml is
+    possible)
+
+    Args:
+        value(bool or str): value from which covert to bool; should be bool or 'true' or
+                            'false' case insensitive
+    """
+    if isinstance(value, bool):
+        return value
+
+    if isinstance(value, str):
+        if value.lower() == 'true':
+            return True
+        elif value.lower() == 'false':
+            return False
+        else:
+            raise Exception("Incorrect string value: " + value + " ! Should be \"true\" or "
+                                                                 "\"false\" (case insensitive)")
+
+    raise Exception("Incorrect type: " + type(value) + " Should be bool or str.")
 
 
 def register_in_application_broker(registered_app, application_broker, app_domain,
@@ -179,7 +210,8 @@ def _enable_broker_access(broker):
                      broker.name, str(ex))
 
     labels = [instance.label for instance in broker.service_instances]
-    for name in set(labels):
+    services = broker.services
+    for name in set(labels + services):
         if name:
             _log.info("Enabling access to service %s... ", name)
             cf_cli.enable_service_access(name)
@@ -371,16 +403,22 @@ class AppDeployer(object):
                 updates of user-provided services provided by this applications.
                 This list will be empty when there's nothing to restart.
         """
+        is_push_needed = self._check_push_needed(push_strategy)
+
         _log.info('Setting up application %s...', self.app.name)
-        self._push_app(artifacts_location, push_strategy)
+        self._push_app(artifacts_location, is_push_needed)
 
         apps_to_restart = []
         for service in self.app.user_provided_services:
             affected_apps = UpsiDeployer(service).deploy()
             apps_to_restart.extend(affected_apps)
 
+        if is_push_needed:
+            self._execute_post_command()
+
         if self.app.broker_config:
             setup_broker(self.app.broker_config)
+
         return apps_to_restart
 
     def prepare(self, artifacts_location):
@@ -414,19 +452,15 @@ class AppDeployer(object):
 
         return unpacked_path
 
-    def _push_app(self, artifacts_location, push_strategy):
+    def _push_app(self, artifacts_location, is_push_needed):
         """Pushes an application to Cloud Foundry. Or not, if the conditions aren't right.
         Can also restart it.
         """
-        if self._check_push_needed(push_strategy):
+        if is_push_needed:
             _log.info('Pushing app %s...', self.app.name)
             prepared_app_path = self.prepare(artifacts_location)
             app_manifest_location = path.join(prepared_app_path, self.FILLED_MANIFEST)
             cf_cli.push(prepared_app_path, app_manifest_location, self.app.push_options.params)
-
-            if self.app.push_options.post_command:
-                _log.info('App %s has post-push commands, executing...', self.app.name)
-                subprocess.check_call(self.app.push_options.post_command, shell=True)
         else:
             _log.info("No need to push app %s, it's already up-to-date...", self.app.name)
 
@@ -465,11 +499,36 @@ class AppDeployer(object):
                 .format(self.app.name))
         return app_version_line.split()[1]
 
+    def _execute_post_command(self):
+        if self.app.push_options.post_command:
+            _log.info('App %s has post-push commands, executing...', self.app.name)
+            subprocess.check_call(self.app.push_options.post_command, shell=True)
+
 
 class AppVersionNotFoundError(Exception):
     """
     'VERSION' environment variable wasn't present for an application.
     """
+
+
+def setup_security_group(cf_login_data, security_group):
+    """Creates and binds security group to seedorg.
+
+    Args:
+        cf_login_data (`cf_cli.CfInfo`) CF infos containing org and space to which bind
+                                        security group
+        security_group (`apployer.SecurityGroup`): Definition of security group
+    """
+
+    security_group_arrayed = [security_group.to_dict_for_cf_json()]
+
+    with open(SG_RULES_FILENAME, 'w') as file_pipe:
+        json.dump(security_group_arrayed, file_pipe)
+
+    cf_cli.create_security_group(security_group.name, SG_RULES_FILENAME)
+    cf_cli.bind_security_group(security_group.name, cf_login_data.org, cf_login_data.space)
+
+    remove(SG_RULES_FILENAME)
 
 
 def _prepare_org_and_space(cf_login_data):

@@ -22,7 +22,7 @@ import yaml
 
 from apployer.appstack import AppConfig, AppStack, UserProvidedService, BrokerConfig
 from apployer.appstack_expand import expand_appstack, _sort_appstack
-from .utils import get_appstack_resource_dir
+from tests.utils import get_appstack_resource_dir
 
 app_a_upsi_name = 'app_a_upsi'
 app_a = AppConfig(
@@ -52,13 +52,18 @@ app_f = AppConfig(
         order=0,
         app_properties={'services': [app_a_upsi_name]})
 app_g = AppConfig(name='app_g', order=1)
+app_h = AppConfig(name='app_h', order=-2)
+app_i = AppConfig(name='app_i', order=-1)
 
 
 @pytest.mark.parametrize('sorted_apps', [
     [app_a, app_b, app_c],
     [app_a, app_d, app_e],
     [app_f, app_a, app_b],
-    [app_f, app_g, app_a, app_b]
+    [app_f, app_g, app_a, app_b],
+    [app_h, app_i],
+    [app_a, app_b, app_c, app_h, app_i],
+    [app_f, app_a, app_h, app_i]
 ])
 def test_sort_appstack(sorted_apps):
     for apps_tuple in itertools.permutations(sorted_apps):

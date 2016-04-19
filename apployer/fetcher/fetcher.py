@@ -22,13 +22,11 @@ live TAP environment.
 import logging
 import os
 import pprint
-
 import jinja2
 import yaml
 
-from .cdh_utilities import CdhConfExtractor
+from .jumpbox_utilities import ConfigurationExtractor
 from .conf_finalizer import deduce_final_configuration
-from .bastion_utilities import CFConfExtractor
 
 DEPLOY_CONF_FILE = 'templates/template_variables.yml'
 DEFAULT_FILLED_APPSTACK_PATH = 'filled_expanded_appstack.yml'
@@ -59,34 +57,16 @@ def _get_fetcher_config(fetcher_config_path):
     _log.debug('Using configuration file: %s', fetcher_config_path)
     with open(fetcher_config_path) as fetcher_config_file:
         fetcher_config = yaml.load(fetcher_config_file)
-    return _fill_config_defaults(fetcher_config)
-
-
-def _fill_config_defaults(fetcher_config):
-    config_with_defaults = fetcher_config.copy()
-    is_openstack = config_with_defaults['openstack_env']
-    cdh_launcher_conf = config_with_defaults['machines']['cdh-launcher']
-
-    if not cdh_launcher_conf['username']:
-        if is_openstack:
-            cdh_launcher_conf['username'] = 'centos'
-        else:
-            cdh_launcher_conf['username'] = 'ec2-user'
-    return config_with_defaults
+    return fetcher_config
 
 
 def _get_environment_config(fetcher_config):
-    _log.info("Extracting configuration values from CDH...")
-    with CdhConfExtractor(fetcher_config) as cdh_extractor:
-        cdh_conf = cdh_extractor.get_all_deployments_conf()
+    _log.info("Extracting configuration values from environment...")
+    with ConfigurationExtractor(fetcher_config) as cf_extractor:
+        env_conf = cf_extractor.get_deployment_configuration()
 
-    _log.info("Extracting configuration values from bastion...")
-    with CFConfExtractor(fetcher_config) as cf_extractor:
-        env_conf = cf_extractor.get_environment_settings()
-
-    fetched_config = dict(cdh_conf.items() + env_conf.items())
-    _log.debug('Config values fetched from environment:\n%s', pprint.pformat(fetched_config))
-    return fetched_config
+    _log.debug('Config values fetched from environment:\n%s', pprint.pformat(env_conf))
+    return env_conf
 
 
 def _get_full_deployment_config(env_conf_values):

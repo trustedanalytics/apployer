@@ -1,3 +1,5 @@
+[![Dependency Status](https://www.versioneye.com/user/projects/57234ee8ba37ce00350af319/badge.svg?style=flat)](https://www.versioneye.com/user/projects/57234ee8ba37ce00350af319)
+
 # Apployer
 Tool for deployment of Cloud Foundry application stack.
 Application stack consists of interdependent CF applications, brokers, services and buildpacks.
@@ -13,8 +15,18 @@ Apployer can be run on any machine that has access to a TAP instance (created ac
 1. Run `apployer deploy` command. See `apployer deploy --help` for details and example usage.
 
 ## Setup
-* Enabling compilation of Python C extensions `$ sudo apt-get install python-dev`
-* Install in your system Python: `$ sudo python setup.py install` or inside a virtualenv: `$ python setup.py install`
+* Install prerequisites:
+    * Ubuntu Desktop: 
+        + `$ sudo apt-get install python-dev libffi-dev libssl-dev`
+    * Ubuntu Server: 
+        + `$ sudo apt-get install python-dev libffi-dev libssl-dev build-essential`
+    * CentOS:
+        + `$ sudo yum install python-devel libffi-devel openssl-devel`
+        + `$ sudo yum groupinstall 'Development Tools'`
+* Install setup-tools: `$ curl 'https://bootstrap.pypa.io/ez_setup.py' -o - | sudo -E python`
+* Install apployer in your system Python: `$ sudo python setup.py install` or inside a virtualenv: `$ python setup.py install`
+
+Be sure that you have configured /etc/hosts properly. For this purpose run command hostname. As a result of this operation you will see hostname of your machine. Now open /etc/hosts file and find there one line: 127.0.0.1 <your_hostname>. If you cannot find it, you should add it there.
 
 ## Testing
 * Install Tox: `$ sudo pip install --upgrade tox`

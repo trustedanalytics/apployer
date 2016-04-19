@@ -152,7 +152,43 @@ def deploy( #pylint: disable=too-many-arguments
     _log.info('Deployment time: %s', _seconds_to_time(time.time() - start_time))
 
 
-def _get_filled_appstack(
+@cli.command()
+@click.argument('ARTIFACTS_LOCATION')
+@click.option('-f', '--fetch-conf', 'fetcher_config',
+              default=DEFAULT_FETCHER_CONF, show_default=True,
+              help='Path to the configuration file for environment configuration fetcher.')
+@click.option('-e', '--expanded-appstack',
+              default=DEFAULT_EXPANDED_APPSTACK_FILE,
+              help="After expansion, expanded appstack will be saved in this location.")
+@click.option('-a', '--appstack',
+              default=DEFAULT_APPSTACK_FILE, show_default=True,
+              help='Path to the file containing non-expanded appstack. Only used if expanded'
+                   'appstack has not been specified.')
+def fetch(artifacts_location, fetcher_config, expanded_appstack, appstack):
+    """
+    Fetch environment configuration, generate and fill expanded_appstack.yml file.
+    This should be run from environment's bastion to reduce chance of errors.
+
+    ARTIFACTS_LOCATION: Path to a directory with applications' artifacts (zips).
+    It should be the "apps/" subdirectory of an unpacked TAP release package.
+
+    Example usage (fetching environment configuration from Apployer's directory within
+    an unpacked TAP release package):
+
+    apployer fetch ../apps
+    """
+    if os.path.exists(appstack):
+        expand_appstack(appstack, artifacts_location, expanded_appstack)
+        final_appstack_path = fill_appstack(expanded_appstack, fetcher_config)
+    else:
+        raise ApployerArgumentError("Couldn't find any appstack file.")
+
+    with open(final_appstack_path) as appstack_file:
+        filled_appstack_dict = yaml.load(appstack_file)
+        _log.info('Content of %s file: \n %s', final_appstack_path, yaml.dump(filled_appstack_dict))
+
+
+def _get_filled_appstack( #pylint: disable=too-many-arguments
         appstack_path,
         expanded_appstack_path,
         filled_appstack_path,

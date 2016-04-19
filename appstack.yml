@@ -6,9 +6,9 @@ buildpacks:
 apps:
 
 - name: auth-gateway
-  order: 0
+  order: 1
   push_options:
-    post_command: curl -X PUT -v auth-gateway.{{ run_domain }}/organizations/$(cf org {{ core_org_name }} --guid)
+    post_command: 'curl -X PUT -H "Authorization: $(cf oauth-token | grep bearer)" -v auth-gateway.{{ run_domain }}/organizations/$(cf org {{ core_org_name }} --guid);curl -X PUT -H "Authorization: $(cf oauth-token | grep bearer)" -v auth-gateway.{{ run_domain }}/organizations/$(cf org {{ core_org_name }} --guid)/users/$(cf oauth-token | grep bearer | cut -d"." -f2 | base64 -d | jq .user_id | tr -d \")'
   app_properties:
     buildpack: java_buildpack
     env:
@@ -16,24 +16,32 @@ apps:
       HDFS_KEYTAB: '{{ auth_gateway_keytab_value }}'
       HGM_PRINCIPAL: '{{ hgm_principal }}{{ authgateway_principals_suffix if kerberos_host != '' }}'
       HGM_PRINCIPAL_KEYTAB: '{{ hgm_keytab_value }}'
+      HBASE_PROVIDED_ZIP: '{{ import_hadoop_conf_hbase }}'
       HGM_URL: '{{ hgm_adress }}'
       HGM_USERNAME: '{{ hgm_username }}'
       HGM_PASSWORD: '{{ hgm_password }}'
-      SENTRY_KEYTAB: '{{ sentry_keytab_value }}'
+      WAREHOUSE_KEYTAB: '{{ sentry_keytab_value }}'
+      WAREHOUSE_SUPERUSER: '{{ sentry_superuser }}{{ authgateway_principals_suffix if kerberos_host != '' }}'
+      HIVE_CONNECTIONURL: '{{ hive_server_url }}'
+      IMPALA_CONNECTIONURL: '{{ thrift_server_url }}'
+      IMPALA_AVAILABLE: '{{ "true" if external_tool_arcadia else "false" }}'
       SENTRY_ADDRESS: '{{ sentry_address }}'
       SENTRY_PORT: '{{ sentry_port }}'
       SENTRY_PRINCIPAL: '{{ sentry_principal }}'
-      SENTRY_SUPERUSER: '{{ sentry_superuser }}{{ authgateway_principals_suffix if kerberos_host != '' }}'
       SPRING_PROFILES_ACTIVE: '{{ auth_gateway_profile }}'
       KRB_KDC: "{{ kerberos_host }}"
       KRB_PASSWORD: "{{ kerberos_password if kerberos_host != '' }}"
       KRB_REALM: "{{ kerberos_realm if kerberos_host != '' }}"
       KRB_USER: "{{ kerberos_username }}"
       HADOOP_PROVIDED_ZIP: '{{ import_hadoop_conf_hdfs }}'
+      CLOUDERA_USER: "{{ cloudera_user }}"
+      CLOUDERA_PASSWORD: "{{ cloudera_password }}"
+      CLOUDERA_ADDRESS: "{{ cloudera_address }}"
+      CLOUDERA_PORT: "{{ cloudera_port }}"
       ZK_CLUSTER_URL: '{{ master_node_host_1 }}:2181,{{ master_node_host_2 }}:2181,{{ master_node_host_3 }}:2181'
 
 - name: auth-proxy
-  order: 1
+  order: 0
   app_properties:
     env:
       NODE_TLS_REJECT_UNAUTHORIZED: 0
@@ -52,6 +60,7 @@ apps:
 # BROKERS
 
 - name: application-broker
+  order: 2
   app_properties:
     buildpack: go_buildpack
     env:
@@ -69,6 +78,7 @@ apps:
           url: http://app-dependency-discoverer.{{ apps_domain }}
 
 - name: gearpump-broker
+  order: -1
   app_properties:
     env:
       BASE_GUID: 1ebaebc7-e344-4cb9-ad18-e29901386e04
@@ -87,11 +97,11 @@ apps:
     auth_username: '{{ gearpump_broker_user }}'
     auth_password: '{{ gearpump_broker_user_pass }}'
 
-#To be uncommented after finishing: DPNG-4038
-#- name: h2o-broker
-#  app_properties:
-#    env:
-#      USER_PASSWORD: '{{ h2o_broker_user_pass }}'
+- name: h2o-broker
+  app_properties:
+    env:
+      USER_PASSWORD: '{{ h2o_broker_user_pass }}'
+# Do not register as a broker to prevent enabling h2o service. Remove after DPNG-6678.
 #  broker_config:
 #    name: h2o
 #    url: https://h2o-broker.{{ apps_domain }}
@@ -103,10 +113,15 @@ apps:
     env:
       USER_PASSWORD: '{{ hdfs_broker_user_pass }}'
       HADOOP_PROVIDED_ZIP: '{{ import_hadoop_conf_hdfs }}'
-      SPRING_PROFILES_ACTIVE: cloud,{{ 'secure' if kerberos_host != '' else 'insecure' }}
+      SPRING_PROFILES_ACTIVE: '{{ "cloud,kerberos" if kerberos_host != "" else "cloud" }}'
       HDFS_KEYTAB: '{{ hdfs_keytab_value }}'
       SYSTEM_USER: '{{ broker_system_user }}'
       SYSTEM_USER_PASSWORD: '{{ broker_system_user_password }}'
+      HGM_PRINCIPAL: '{{ hgm_principal }}{{ authgateway_principals_suffix if kerberos_host != '' }}'
+      HGM_PRINCIPAL_KEYTAB: '{{ hgm_keytab_value }}'
+      HGM_URL: '{{ hgm_adress }}'
+      HGM_USERNAME: '{{ hgm_username }}'
+      HGM_PASSWORD: '{{ hgm_password }}'
   broker_config:
     name: hdfs
     url: https://hdfs-broker.{{ apps_domain }}
@@ -138,7 +153,7 @@ apps:
     auth_password: '{{ hbase_broker_user_pass }}'
     service_instances:
     - name: hbase-for-atk
-      plan: shared
+      plan: bare
 
 - name: zookeeper-broker
   app_properties:
@@ -170,6 +185,8 @@ apps:
       plan: shared
     - name: zookeeper-gearpump
       plan: shared
+    - name: zookeeper-for-hive
+      plan: shared
 
 - name: yarn-broker
   app_properties:
@@ -193,6 +210,54 @@ apps:
       plan: bare
     - name: yarn-gearpump
       plan: bare
+
+- name: hive-broker
+  app_properties:
+    env:
+      HIVE_SERVER2_THRIFT_BIND_HOST: '{{ namenode_internal_host }}'
+      HIVE_SERVER2_THRIFT_PORT: 10000
+      HIVE_SUPERUSER: '{{ sentry_superuser }}{{ authgateway_principals_suffix if kerberos_host != '' }}'
+      HIVE_SUPERUSER_KEYTAB: '{{ sentry_keytab_value }}'
+      HADOOP_PROVIDED_ZIP: '{{ import_hadoop_conf_hive }}'
+      USER_PASSWORD: '{{ hive_broker_user_pass }}'
+      SYSTEM_USER: "{{ broker_system_user }}"
+      SYSTEM_USER_PASSWORD: "{{ broker_system_user_password }}"
+  broker_config:
+    name: hive
+    url: http://hive-broker.{{ apps_domain }}
+    auth_username: '{{ hive_broker_user }}'
+    auth_password: '{{ hive_broker_user_pass }}'
+    service_instances:
+    - name: hive-instance-shared
+      plan: shared
+    - name: hive-for-dspublisher 
+      plan: multitenant
+
+- name: kubernetes-broker
+  order: -2
+  push_if: '{{ kubernetes_used }}'
+  push_options:
+    post_command: 'cf bind-service console kubernetes-broker;cf restage console'
+  app_properties:
+    env:
+      SERVICES_DOMAIN: '{{ apps_domain }}'
+      KUBE_REPO_USER: '{{ quay_io_username }}'
+      KUBE_REPO_PASS: '{{ quay_io_password }}'
+      KUBE_REPO_URL: '{{ quay_io_url }}'
+  broker_config:
+    name: kubernetes-broker
+    url: http://kubernetes-broker.{{ apps_domain }}
+    auth_username: '{{ kubernetes_broker_user }}'
+    auth_password: '{{ kubernetes_broker_password }}'
+    services:
+      - mongodb-clustered
+      - mysql56-clustered
+      - postgresql94-clustered
+  user_provided_services:
+    - name: kubernetes-broker
+      credentials:
+        host: http://kubernetes-broker.{{ apps_domain }}
+
 
 # APPS IN APPLICATION BROKER
 
@@ -314,6 +379,9 @@ apps:
       host: http://service-catalog.{{ apps_domain }}
 
 - name: service-exposer
+  app_properties:
+    env:
+      SERVICETYPES: "rstudio,jupyter,gearpump,h2o"
   user_provided_services:
   - name: service-exposer
     credentials:
@@ -341,6 +409,17 @@ apps:
     credentials:
       url: http://metadata.{{ apps_domain }}
 
+- name: workflow-scheduler
+  app_properties:
+      env:
+        JOB_TRACKER: '{{ job_tracker }}'
+        OOZIE_API_URL: '{{ oozie_server }}'
+        SQOOP_METASTORE: '{{ metastore }}'
+  user_provided_services:
+  - name: workflow-scheduler
+    credentials:
+      host: http://workflow-scheduler.{{ apps_domain }}
+
 - name: user-management
   user_provided_services:
   - name: user-management
@@ -359,14 +438,57 @@ apps:
     credentials:
       host: http://model-catalog.{{ apps_domain }}
 
+- name: platform-snapshot
+  app_properties:
+    env:
+      CLOUDERA_USER: "{{ cloudera_user }}"
+      CLOUDERA_PASSWORD: "{{ cloudera_password }}"
+      CLOUDERA_ADDRESS: "{{ cloudera_address }}"
+      CLOUDERA_PORT: "{{ cloudera_port }}"
+  user_provided_services:
+  - name: platform-snapshot
+    credentials:
+      host: http://platform-snapshot.{{ apps_domain }}
+
 - name: platform-context
   app_properties:
     env:
       CF_CLI_VERSION: '{{ cf_cli_version }}'
+      PLATFORM_VERSION: '{{ platform_version }}'
+      PLATFORM_COREORG: '{{ core_org_name }}'
   user_provided_services:
   - name: platformcontext
     credentials:
       host: http://platform-context.{{ apps_domain }}
+
+- name: platform-tests
+  app_properties:
+    env:
+      CORE_ORG_NAME: '{{ core_org_name }}'
+      CORE_SPACE_NAME: '{{ core_space_name }}'
+  user_provided_services:
+  - name: platform-tests
+    credentials:
+      host: http://platform-tests.{{ apps_domain }}
+
+- name: demiurge
+  push_if: '{{ kubernetes_used }}'
+  app_properties:
+      env:
+        AWS_DEFAULT_REGION: '{{ region }}'
+        AWS_ACCESS_KEY_ID: '{{ kubernetes_aws_access_key_id }}'
+        AWS_SECRET_ACCESS_KEY: '{{ kubernetes_aws_secret_access_key }}'
+        VPC: '{{ vpc }}'
+        SUBNET: '{{ kubernetes_subnet }}'
+        KEY_NAME: '{{ key_name }}'
+        CONSUL_DC: '{{ consul_dc }}'
+        CONSUL_JOIN: '{{ consul_join }}'
+        USERNAME: '{{ demiurge_username }}'
+        PASSWORD: '{{ demiurge_password }}'
+  user_provided_services:
+  - name: demiurge
+    credentials:
+      host: http://demiurge.{{ apps_domain }}
 
 - name: h2o-scoring-engine-publisher
 
@@ -429,7 +551,7 @@ apps:
       SERVICE_PLAN_NAME: shared
       TAGS: kerberos
       service_broker_names: kerberos
-      CREDENTIALS: '{"kdc": "{{ kerberos_host }}", "krealm": "{{ kerberos_realm if kerberos_host != "" }}", "kcacert": "{{ kerberos_cacert }}", "kuser": "{{ kerberos_username }}", "kpassword": "{{ kerberos_password if kerberos_host != "" }}", "enabled": {{ "true" if kerberos_host != "" else "false"}} }'
+      CREDENTIALS: '{"kdc": "{{ kerberos_host if kerberos_host != "" else " " }}", "krealm": "{{ kerberos_realm if kerberos_host != "" else " " }}", "kcacert": "{{ kerberos_cacert }}", "kuser": "{{ kerberos_username }}", "kpassword": "{{ kerberos_password if kerberos_host != "" else " " }}", "enabled": {{ "true" if kerberos_host != "" else "false"}} }'
       VERSION: '{{ wssb_version }}'
   broker_config:
     name: kerberos
@@ -533,11 +655,11 @@ user_provided_services:
     hue:
       available: "{{ external_tool_hue }}"
       url: "https://hue.{{ apps_domain }}/metastore/table"
-      internal_host: "{{ hue_node }}:8888"
+      internal_host: "{{ hue_node }}:{{ hue_port }}"
     arcadia:
       available: "{{ external_tool_arcadia }}"
       url: "https://arcadia.{{ apps_domain }}/arc/apps/"
-      internal_host: "{{ arcadia_node }}:80"
+      internal_host: "{{ arcadia_node }}:{{ arcadia_port }}"
     rstudio:
       available: "{{ external_tool_rstudio }}"
     h2o:
@@ -546,10 +668,6 @@ user_provided_services:
       internal_host: "{{ h2o_node }}:54321"
     gearpump:
       available: "{{ external_tool_gearpump }}"
-- name: thrift-server
-  credentials:
-    hiveUser: hdfs
-    hiveUrl: '{{ thrift_server_url }}'
 - name: h2o-provisioner
   credentials:
     url: http://{{ h2o_provisioner_host }}:{{ h2o_provisioner_port }}
@@ -558,6 +676,14 @@ user_provided_services:
     auth_user: '{{ app_dep_disc_user }}'
     auth_pass: '{{ app_dep_disc_pass }}'
     url: http://app-dependency-discoverer.{{ apps_domain }}
+- name: kubernetes-creator-credentials
+  push_if: '{{ kubernetes_used }}'
+  credentials:
+    username: '{{ demiurge_username }}'
+    password: '{{ demiurge_password }}'
+    url: http://demiurge.{{ apps_domain }}
+
+
 
 ############# GLOBAL BROKERS #############
 brokers:
@@ -565,10 +691,29 @@ brokers:
   url: http://cf-containers-broker.{{ run_domain }}
   auth_username: '{{ docker_broker_user }}'
   auth_password: '{{ docker_broker_user_pass }}'
+  services:
+  - couchdb16
+  - neo4j21
+  - arangodb22
+  - rabbitmq33
+  - memcached14
+  - logstash14
+  - nats
+  - etcd
+  - consul
+  - mosquitto14
+  - jupyter
+  - mongodb30
+  - cassandra
+  - orientdb
+
   service_instances:
-#  - name: cassandra-example
-#    plan: v3.3
-#    label: cassandra
+  - name: platform-snapshot-db
+    plan: free
+    label: postgresql93
+  - name: workflow-scheduler-db
+    plan: free
+    label: postgresql93
   - name: postgres-for-atk
     plan: free
     label: postgresql93
@@ -602,7 +747,13 @@ brokers:
   - name: operations-store
     plan: free
     label: mongodb26
-  - name: ipython-example
+  - name: platform-tests-mongodb
     plan: free
-    label: ipython
+    label: mongodb26
 
+security_groups:
+- name: kubernetes
+  push_if: '{{ kubernetes_used }}'
+  protocol: tcp
+  destination: '{{ kubernetes_subnet_cidr }}'
+  ports: 1-65535

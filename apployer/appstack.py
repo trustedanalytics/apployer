@@ -94,12 +94,13 @@ class AppStack(DataContainer):
     """
 
     def __init__(self, apps=None, user_provided_services=None, # pylint: disable=too-many-arguments
-                 brokers=None, buildpacks=None, domain=None):
+                 brokers=None, buildpacks=None, domain=None, security_groups=None):
         self.apps = apps or []
         self.user_provided_services = user_provided_services or []
         self.brokers = brokers or []
         self.buildpacks = buildpacks or []
         self.domain = domain or ''
+        self.security_groups = security_groups or []
 
         self._validate_register_in()
 
@@ -119,7 +120,9 @@ class AppStack(DataContainer):
                    in appstack.get('brokers', [])]
         buildpacks = appstack.get('buildpacks', [])
         domain = appstack.get('domain')
-        return AppStack(apps, user_provided_services, brokers, buildpacks, domain)
+        security_groups = [SecurityGroup.from_dict(sg_dict) for sg_dict
+                           in appstack.get('security_groups', [])]
+        return AppStack(apps, user_provided_services, brokers, buildpacks, domain, security_groups)
 
     @staticmethod
     def _get_apps(appstack):
@@ -211,13 +214,14 @@ class AppConfig(DataContainer): # pylint: disable=too-many-instance-attributes
             If not provided it will be set automatically during application sorting.
         is_ordered (bool): Whether `order` is set to a meaningful value and should be taken into
             consideration.
+        push_if: flag to determine if really create on environment
     """
 
     _to_dict_filters = [lambda key, _: key in ['is_ordered']]
 
     def __init__(self, name, app_properties=None,   # pylint: disable=too-many-arguments
                  user_provided_services=None, broker_config=None, artifact_name=None,
-                 register_in=None, push_options=None, order=None):
+                 register_in=None, push_options=None, order=None, push_if=True):
         if not name:
             raise MalformedAppStackError("Application's name not specified.")
         self.name = name
@@ -227,6 +231,7 @@ class AppConfig(DataContainer): # pylint: disable=too-many-instance-attributes
         self.artifact_name = artifact_name or name
         self.register_in = register_in
         self.push_options = push_options or PushOptions()
+        self.push_if = push_if
 
         self.order = order
         if isinstance(order, int):
@@ -322,16 +327,19 @@ class BrokerConfig(DataContainer):
         auth_password (str): Broker's password.
         service_instances (list[`ServiceInstance`]): Instances that will be created from this
             broker.
+        push_if: flag to determine if really create on environment
     """
 
-    def __init__(self, name, url,  # pylint: disable=too-many-arguments
-                 auth_username, auth_password, service_instances=None):
+    def __init__(self, name, url, auth_username, auth_password, # pylint: disable=too-many-arguments
+                 services=None, service_instances=None, push_if=True):
         # TODO validate the fields
         self.name = name
         self.url = url
         self.auth_username = auth_username
         self.auth_password = auth_password
+        self.services = services or []
         self.service_instances = service_instances or []
+        self.push_if = push_if
 
     @staticmethod
     def from_dict(broker_config_dict):
@@ -359,13 +367,15 @@ class ServiceInstance(DataContainer):
         plan (str): Broker plan for which the service will be created.
         label (str): Additional description for creating services with special brokers, e.g. Docker
             broker.
+        push_if: flag to determine if really create on environment
     """
 
-    def __init__(self, name, plan, label=None):
+    def __init__(self, name, plan, label=None, push_if=True):
         # TODO validate the fields
         self.name = name
         self.plan = plan
         self.label = label
+        self.push_if = push_if
 
 
 class UserProvidedService(DataContainer):
@@ -375,9 +385,58 @@ class UserProvidedService(DataContainer):
         name (str): Instance's name.
         credentials (dict): Service's credentials - the content that get into application's
             environment when binding the service.
+        push_if: flag to determine if really create on environment
     """
 
-    def __init__(self, name, credentials):
+    def __init__(self, name, credentials, push_if=True):
         # TODO validate the fields
         self.name = name
         self.credentials = credentials
+        self.push_if = push_if
+
+
+class SecurityGroup(DataContainer):
+    """Configuration of a Cloud Foundry security group.
+
+    Attributes:
+        name (str): Instance's name.
+        protocol (str): Service's credentials - the content that get into application's
+        environment when binding the service.
+        destination (str): Same as in CF (refer to cf help)
+        ports (str): Same as in CF (refer to cf help)
+        push_if: flag to determine if really create on environment
+    """
+    #pylint: disable=too-many-arguments
+    def __init__(self, name, protocol, destination, ports, push_if=True):
+        self.name = name
+        self.protocol = protocol
+        self.destination = destination
+        self.ports = ports
+        self.push_if = push_if
+
+    @classmethod
+    def from_dict(cls, security_group_dict):
+        """
+        Args:
+            security_group_dict (dict): `SecurityGroup` instance serialized to a dictionary.
+
+        Returns:
+        `SecurityGroup`: Deserialized instance.
+        """
+        name = security_group_dict['name']
+        protocol = security_group_dict['protocol']
+        destination = security_group_dict['destination']
+        ports = security_group_dict['ports']
+        push_if = security_group_dict['push_if']
+
+        return cls(name, protocol, destination, ports, push_if)
+
+    def to_dict_for_cf_json(self):
+        """Creates dict from instance of this class for CF create-security-group json (i.e.
+        without name and push_if)"""
+        security_group_dict = dict()
+        security_group_dict['protocol'] = self.protocol
+        security_group_dict['destination'] = self.destination
+        security_group_dict['ports'] = self.ports
+
+        return security_group_dict
