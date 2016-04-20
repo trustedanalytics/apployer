@@ -93,11 +93,12 @@ apps:
   app_properties:
     env:
       USER_PASSWORD: '{{ h2o_broker_user_pass }}'
-  broker_config:
-    name: h2o
-    url: https://h2o-broker.{{ apps_domain }}
-    auth_username: '{{ h2o_broker_user }}'
-    auth_password: '{{ h2o_broker_user_pass }}'
+# Do not register as a broker to prevent enabling h2o service. Remove after DPNG-6678.
+#  broker_config:
+#    name: h2o
+#    url: https://h2o-broker.{{ apps_domain }}
+#    auth_username: '{{ h2o_broker_user }}'
+#    auth_password: '{{ h2o_broker_user_pass }}'
 
 - name: hdfs-broker
   app_properties:
