@@ -32,6 +32,7 @@ from cm_api.api_client import ApiResource
 import paramiko
 import yaml
 import requests
+import xml.etree.ElementTree as ET
 
 GENERATE_KEYTAB_SCRIPT = """#!/bin/sh
 
@@ -231,11 +232,11 @@ class CdhConfExtractor(object):
             result['krb5_base64'] = self.generate_base64_for_file('/etc/krb5.conf', self._cdh_manager_ip)
             result['kerberos_cacert'] = self.generate_base64_for_file('/var/krb5kdc/cacert.pem', self._cdh_manager_ip)
 
-            #sentry_service = helper.get_service_from_cdh('SENTRY')
-            result['sentry_port'] = '' #helper.get_entry(sentry_service, 'port')
-            result['sentry_address'] = '' #helper.get_host(sentry_service)
-            result['sentry_keytab_value'] = '' #self.generate_keytab('hive/sys')
-            result['auth_gateway_profile'] = 'cloud,zookeeper-auth-gateway,hdfs-auth-gateway,kerberos-hgm-auth-gateway'
+            sentry_service = helper.get_service_from_cdh('SENTRY')
+            result['sentry_port'] = helper.get_entry(sentry_service, 'sentry_service_server_rpc_port')
+            result['sentry_address'] = helper.get_host(sentry_service)
+            result['sentry_keytab_value'] = self.generate_keytab('hive/sys')
+            result['auth_gateway_profile'] = 'cloud,sentry-auth-gateway,zookeeper-auth-gateway,hdfs-auth-gateway,kerberos-hgm-auth-gateway,yarn-auth-gateway,hbase-auth-gateway'
             hgm_service = helper.get_service_from_cdh('HADOOPGROUPSMAPPING')
             result['hgm_adress'] = 'http://' + helper.get_host(hgm_service, 'HADOOPGROUPSMAPPING-HADOOPGROUPSMAPPING_RESTSERVER') + ':' \
                                    + helper.get_entry_from_group(hgm_service, 'rest_port', 'HADOOPGROUPSMAPPING-HADOOPGROUPSMAPPING_RESTSERVER-BASE')
@@ -251,12 +252,26 @@ class CdhConfExtractor(object):
             result['hgm_keytab_value'] = ''
             result['krb5_base64'] = ''
             result['kerberos_cacert'] = ''
-            result['auth_gateway_profile'] = 'cloud,zookeeper-auth-gateway,hdfs-auth-gateway,https-hgm-auth-gateway'
+            result['auth_gateway_profile'] = 'cloud,zookeeper-auth-gateway,hdfs-auth-gateway,https-hgm-auth-gateway,yarn-auth-gateway,hbase-auth-gateway'
             hgm_service = helper.get_service_from_cdh('HADOOPGROUPSMAPPING')
             result['hgm_adress'] = 'https://' + helper.get_host(hgm_service, 'HADOOPGROUPSMAPPING-HADOOPGROUPSMAPPING_RESTSERVER') + ':'\
                                    + helper.get_entry_from_group(hgm_service, 'rest_port', 'HADOOPGROUPSMAPPING-HADOOPGROUPSMAPPING_RESTSERVER-BASE')
             result['hgm_password'] = helper.get_entry_from_group(hgm_service, 'basic_auth_pass', 'HADOOPGROUPSMAPPING-HADOOPGROUPSMAPPING_RESTSERVER-BASE')
             result['hgm_username'] = helper.get_entry_from_group(hgm_service, 'basic_auth_user', 'HADOOPGROUPSMAPPING-HADOOPGROUPSMAPPING_RESTSERVER-BASE')
+
+        result['cloudera_address'] = result['cloudera_manager_internal_host']
+        result['cloudera_port'] = 7180
+        result['cloudera_user'] = self._cdh_manager_user
+        result['cloudera_password'] = self._cdh_manager_password
+
+        oozie_server = helper.get_service_from_cdh('OOZIE')
+        result['oozie_server'] = 'http://' + helper.get_host(oozie_server) + ':' + helper.get_entry(oozie_server, 'oozie_http_port')
+
+        yarn = helper.get_service_from_cdh('YARN')
+        result['job_tracker'] = helper.get_host(yarn) + ':' + helper.get_entry(yarn, 'yarn_resourcemanager_address')
+
+        sqoop_client = helper.get_service_from_cdh('SQOOP_CLIENT')
+        result['metastore'] = self._get_property_value(helper.get_entry(sqoop_client, 'sqoop-conf/sqoop-site.xml_client_config_safety_valve'), 'sqoop.metastore.client.autoconnect.url')
 
         master_nodes = self.extract_nodes_info('cdh-master', deployments_settings)
         for i, node in enumerate(master_nodes):
@@ -268,10 +283,17 @@ class CdhConfExtractor(object):
         result['import_hadoop_conf_hdfs'] = self.get_client_config_for_service('HDFS')
         result['import_hadoop_conf_hbase'] = self.get_client_config_for_service('HBASE')
         result['import_hadoop_conf_yarn'] = self.get_client_config_for_service('YARN')
+        result['import_hadoop_conf_hive'] = self.get_client_config_for_service('HIVE')
 
         return result
 
     # helpful methods
+
+    def _get_property_value(self, config, key):
+        properties = ET.fromstring('<properties>' + config + '</properties>')
+        for property in properties:
+            if property.find('name').text == key:
+                return property.find('value').text
 
     def _find_item_by_attr_value(self, attr_value, attr_name, array_with_dicts):
         return next(item for item in array_with_dicts if item[attr_name] == attr_value)
