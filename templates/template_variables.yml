@@ -159,6 +159,12 @@ yarm_broker_user: user
 # password that the YARN broker will use
 yarn_broker_user_pass: little-gold-bubbles-heavenly
 
+# username that the HIVE broker will use
+hive_broker_user: user
+
+# password that the HIVE broker will use
+hive_broker_user_pass: little-platinum-bubbles-heavenly
+
 # username that the KERBEROS broker will use
 kerberos_broker_user: admin
 
@@ -232,6 +238,7 @@ h2o_provisioner_port:
 import_hadoop_conf_hbase:
 import_hadoop_conf_hdfs:
 import_hadoop_conf_yarn:
+import_hadoop_conf_hive:
 
 # *** set only for Kerberos-enabled deployment ***
 # hostname of the Kerberos Key Distribution Center, should be the same as CDH Manager machine

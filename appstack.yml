@@ -8,7 +8,7 @@ apps:
 - name: auth-gateway
   order: 0
   push_options:
-    post_command: curl -X PUT -v auth-gateway.{{ run_domain }}/organizations/$(cf org {{ core_org_name }} --guid)
+    post_command: 'curl -X PUT -H "Authorization: $(cf oauth-token | grep bearer)" -v auth-gateway.{{ run_domain }}/organizations/$(cf org {{ core_org_name }} --guid);curl -X PUT -H "Authorization: $(cf oauth-token | grep bearer)" -v auth-gateway.{{ run_domain }}/organizations/$(cf org {{ core_org_name }} --guid)/users/$(cf oauth-token | grep bearer | cut -d"." -f2 | base64 -d | jq .user_id | tr -d \")'
   app_properties:
     buildpack: java_buildpack
     env:
@@ -16,6 +16,7 @@ apps:
       HDFS_KEYTAB: '{{ auth_gateway_keytab_value }}'
       HGM_PRINCIPAL: '{{ hgm_principal }}{{ authgateway_principals_suffix if kerberos_host != '' }}'
       HGM_PRINCIPAL_KEYTAB: '{{ hgm_keytab_value }}'
+      HBASE_PROVIDED_ZIP: '{{ import_hadoop_conf_hbase }}'
       HGM_URL: '{{ hgm_adress }}'
       HGM_USERNAME: '{{ hgm_username }}'
       HGM_PASSWORD: '{{ hgm_password }}'
@@ -30,6 +31,10 @@ apps:
       KRB_REALM: "{{ kerberos_realm if kerberos_host != '' }}"
       KRB_USER: "{{ kerberos_username }}"
       HADOOP_PROVIDED_ZIP: '{{ import_hadoop_conf_hdfs }}'
+      CLOUDERA_USER: "{{ cloudera_user }}"
+      CLOUDERA_PASSWORD: "{{ cloudera_password }}"
+      CLOUDERA_ADDRESS: "{{ cloudera_address }}"
+      CLOUDERA_PORT: "{{ cloudera_port }}"
       ZK_CLUSTER_URL: '{{ master_node_host_1 }}:2181,{{ master_node_host_2 }}:2181,{{ master_node_host_3 }}:2181'
 
 - name: auth-proxy
@@ -172,6 +177,8 @@ apps:
       plan: shared
     - name: zookeeper-gearpump
       plan: shared
+    - name: zookeeper-for-hive
+      plan: shared
 
 - name: yarn-broker
   app_properties:
@@ -196,6 +203,25 @@ apps:
     - name: yarn-gearpump
       plan: bare
 
+- name: hive-broker
+  app_properties:
+    env:
+      HIVE_SERVER2_THRIFT_BIND_HOST: '{{ namenode_internal_host }}'
+      HIVE_SERVER2_THRIFT_PORT: 10000
+      HIVE_SUPERUSER: '{{ sentry_superuser }}{{ authgateway_principals_suffix if kerberos_host != '' }}'
+      HIVE_SUPERUSER_KEYTAB: '{{ sentry_keytab_value }}'
+      HADOOP_PROVIDED_ZIP: '{{ import_hadoop_conf_hive }}'
+      USER_PASSWORD: '{{ hive_broker_user_pass }}'
+      SYSTEM_USER: "{{ broker_system_user }}"
+      SYSTEM_USER_PASSWORD: "{{ broker_system_user_password }}"
+  broker_config:
+    name: hive
+    url: http://hive-broker.{{ apps_domain }}
+    auth_username: '{{ hive_broker_user }}'
+    auth_password: '{{ hive_broker_user_pass }}'
+    service_instances:
+    - name: hive-instance-shared
+      plan: shared
 # APPS IN APPLICATION BROKER
 
 - name: gateway
@@ -342,6 +368,17 @@ apps:
   - name: metadataparser
     credentials:
       url: http://metadata.{{ apps_domain }}
+
+- name: workflow-scheduler
+  app_properties:
+      env:
+        JOB_TRACKER: '{{ job_tracker }}'
+        OOZIE_API_URL: '{{ oozie_server }}'
+        SQOOP_METASTORE: '{{ metastore }}'
+  user_provided_services:
+  - name: workflow-scheduler
+    credentials:
+      host: http://workflow-scheduler.{{ apps_domain }}
 
 - name: user-management
   user_provided_services:
@@ -571,6 +608,9 @@ brokers:
 #  - name: cassandra-example
 #    plan: v3.3
 #    label: cassandra
+  - name: workflow-scheduler-db
+    plan: free
+    label: postgresql93
   - name: postgres-for-atk
     plan: free
     label: postgresql93
