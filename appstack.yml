@@ -398,10 +398,18 @@ apps:
     credentials:
       host: http://model-catalog.{{ apps_domain }}
 
+- name: platform-snapshot
+  user_provided_services:
+  - name: platform-snapshot
+    credentials:
+      host: http://platform-snapshot.{{ apps_domain }}
+
 - name: platform-context
   app_properties:
     env:
       CF_CLI_VERSION: '{{ cf_cli_version }}'
+      PLATFORM_VERSION: '{{ platform_version }}'
+      PLATFORM_COREORG: '{{ core_org_name }}'
   user_provided_services:
   - name: platformcontext
     credentials:
@@ -608,6 +616,9 @@ brokers:
 #  - name: cassandra-example
 #    plan: v3.3
 #    label: cassandra
+  - name: platform-snapshot-db
+    plan: free
+    label: postgresql93
   - name: workflow-scheduler-db
     plan: free
     label: postgresql93

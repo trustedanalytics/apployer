@@ -21,6 +21,9 @@ CDH_cluster_name: CDH-cluster
 # username of the Cloud Foundry admin
 cf_admin_username: admin
 
+# version of TAP
+platform_version: 0.7.0
+
 # version of CF CLI compatiple with the platform
 cf_cli_version: 6.12.4
 
