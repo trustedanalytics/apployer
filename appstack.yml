@@ -145,7 +145,7 @@ apps:
     auth_password: '{{ hbase_broker_user_pass }}'
     service_instances:
     - name: hbase-for-atk
-      plan: shared
+      plan: bare
 
 - name: zookeeper-broker
   app_properties:
