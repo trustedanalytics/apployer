@@ -139,7 +139,9 @@ class CFConfExtractor(object):
             return None
 
     def _fetch_variable_from_provision_sh(self, var_name):
-        raw_var_assignment = self.ssh_call_command('cat ' + self._path_to_provision_sh + ' | grep ' + var_name + '=')
+        raw_var_assignment = self.ssh_call_command('cat ' + self._path_to_provision_sh + ' | grep ' + var_name + '=' +
+                                                   ' | head -1')
+
         var_value = raw_var_assignment.split('=')[1]
 
         var_value = var_value.translate(None, '\"\n')
