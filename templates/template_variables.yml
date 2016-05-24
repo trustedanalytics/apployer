@@ -103,12 +103,6 @@ gearpump_ui_name: "gearpump-dashboard"
 # TODO
 gearpump_broker_znode_in_zookeeper: /org/intel/gearpumpbroker/metadata
 
-# username that the H2O broker will use
-h2o_broker_user: user
-
-# password that the H2O broker will use
-h2o_broker_user_pass: organized-widely-football-dance
-
 # username that the HBASE broker will use
 hbase_broker_user: user
 
@@ -204,7 +198,6 @@ quay_io_url: quay.io
 
 external_tool_rstudio: "false"
 external_tool_gearpump: "true"
-external_tool_h2o: "false"
 #############################################
 
 ########################## VARIABLES FILLED AUTOMATICALLY BY THE SCRIPT ############################
@@ -217,9 +210,6 @@ cf_admin_client_password:
 
 # UAA client password for atk. Use quoted empty string to leave it unset.
 atk_client_pass:
-
-# hostname of any h2o worker node, provide this value if other than cdh-worker-0
-h2o_node:
 
 # hostname of any Arcadia worker node, provide this value if other than cdh-worker-0
 arcadia_node:
@@ -238,10 +228,6 @@ tap_console_password:
 
 # e-mail address that will be used to send invitations
 email_address:
-
-# h2o provisioner url (will be consumed by h2o broker)
-h2o_provisioner_host:
-h2o_provisioner_port:
 
 # output of the import_hadoop_conf.sh tool (https://github.com/trustedanalytics/hadoop-admin-tools) for three machines;
 # those will be JSON documents, they need to be in single quotes, e.g. '{"some_key": "some_value"}'

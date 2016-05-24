@@ -97,17 +97,6 @@ apps:
     auth_username: '{{ gearpump_broker_user }}'
     auth_password: '{{ gearpump_broker_user_pass }}'
 
-- name: h2o-broker
-  app_properties:
-    env:
-      USER_PASSWORD: '{{ h2o_broker_user_pass }}'
-# Do not register as a broker to prevent enabling h2o service. Remove after DPNG-6678.
-#  broker_config:
-#    name: h2o
-#    url: https://h2o-broker.{{ apps_domain }}
-#    auth_username: '{{ h2o_broker_user }}'
-#    auth_password: '{{ h2o_broker_user_pass }}'
-
 - name: hdfs-broker
   app_properties:
     env:
@@ -175,8 +164,6 @@ apps:
       plan: bare
     - name: zookeeper-for-atk
       plan: shared
-    - name: zookeeper-for-h2o-broker
-      plan: shared
     - name: zookeeper-for-hbase
       plan: shared
     - name: zookeeper-for-hdfs
@@ -205,8 +192,6 @@ apps:
     auth_password: '{{ yarn_broker_user_pass }}'
     service_instances:
     - name: yarn-for-atk
-      plan: bare
-    - name: yarn-for-h2o-broker
       plan: bare
     - name: yarn-gearpump
       plan: bare
@@ -381,7 +366,7 @@ apps:
 - name: service-exposer
   app_properties:
     env:
-      SERVICETYPES: "rstudio,jupyter,gearpump,h2o"
+      SERVICETYPES: "rstudio,jupyter,gearpump"
   user_provided_services:
   - name: service-exposer
     credentials:
@@ -649,7 +634,7 @@ user_provided_services:
     applicationBrokerUrl: http://application-broker.{{ apps_domain }}
 - name: h2o-model-publisher
   credentials:
-    host: http://h2o-scoring-engine-publisher.{{ apps_domain }} 
+    host: http://h2o-scoring-engine-publisher.{{ apps_domain }}
 - name: external-tools
   credentials:
     hue:
@@ -663,14 +648,11 @@ user_provided_services:
     rstudio:
       available: "{{ external_tool_rstudio }}"
     h2o:
-      available: "{{ external_tool_h2o }}"
-      url: "https://h2o.{{ apps_domain }}/"
-      internal_host: "{{ h2o_node }}:54321"
+      available: "false"
+      url: ""
+      internal_host: ""
     gearpump:
       available: "{{ external_tool_gearpump }}"
-- name: h2o-provisioner
-  credentials:
-    url: http://{{ h2o_provisioner_host }}:{{ h2o_provisioner_port }}
 - name: app-dependency-discoverer-ups
   credentials:
     auth_user: '{{ app_dep_disc_user }}'
