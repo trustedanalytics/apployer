@@ -235,6 +235,8 @@ apps:
     auth_username: '{{ kubernetes_broker_user }}'
     auth_password: '{{ kubernetes_broker_password }}'
     services:
+      - elasticsearch17-multinode
+      - elk-multinode
       - mongodb-clustered
       - mysql56-clustered
       - postgresql94-clustered
