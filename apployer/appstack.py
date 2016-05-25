@@ -325,6 +325,7 @@ class BrokerConfig(DataContainer):
         url (str): URL under which the broker is available.
         auth_username (str): Broker's username/
         auth_password (str): Broker's password.
+        service (str): service access that will be enabled
         service_instances (list[`ServiceInstance`]): Instances that will be created from this
             broker.
         push_if: flag to determine if really create on environment

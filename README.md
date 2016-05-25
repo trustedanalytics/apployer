@@ -32,11 +32,20 @@ Be sure that you have configured /etc/hosts properly. For this purpose run comma
 * Install Tox: `$ sudo pip install --upgrade tox`
 * Run tests: `$ tox`
 
-## Adding new appstack elements (TODO)
-Adding applications, services, brokers or overwriting their configuration - see `appstack.yml`.
-There are plenty of examples there.
-At the moment, documentation of the fields that can be used is in `apployer/appstack.py`,
-in classes: AppConfig, BrokerConfig, UserProvidedService, BrokerConfig, ServiceInstance, PushOptions.
+## Adding new element to TAP deployment
+To add applications, services, brokers or overwriting their configuration, modify `appstack.yml` file in the following way:
+
+* New service offering on TAP -> add offering name to `broker_config::services` list
+* New service-instances on TAP -> add instance name to `broker_config::service_instances` list
+* New user-provided-service-instances on TAP -> add new element to `user_provided_services` list
+* New Application on TAP -> add application element along with it's `app_properties` to `apps::your_app` list
+* New Broker on TAP -> add `broker_config` to `apps::your_broker_app::app_properties` list
+
+To make your app accessible as service-offering, add new app to section `# APPS IN APPLICATION BROKER` in `appstack.yml`.
+(more information about application-broker available at https://github.com/trustedanalytics/application-broker)
+
+At the moment, documentation of the fields that can be used is in `apployer/appstack.py` file,
+in classes: AppConfig, BrokerConfig, UserProvidedService, ServiceInstance, PushOptions.
 
 Need new configuration values? edit `templates/template_variables.yml` and scripts in `apployer/fetcher` directory.  
 
