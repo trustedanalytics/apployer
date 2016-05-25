@@ -22,9 +22,11 @@ import logging
 import os
 import sys
 import time
-
+import subprocess
+import shutil
 import click
 import yaml
+import validators
 
 import apployer
 from .appstack import AppStack
@@ -35,6 +37,7 @@ from .fetcher import fill_appstack, DEFAULT_FETCHER_CONF, DEFAULT_FILLED_APPSTAC
 
 DEFAULT_EXPANDED_APPSTACK_FILE = 'expanded_appstack.yml'
 DEFAULT_APPSTACK_FILE = 'appstack.yml'
+DEFAULT_ARTIFACTS_PATH = 'artifacts'
 
 _log = logging.getLogger(__name__) #pylint: disable=invalid-name
 
@@ -143,6 +146,10 @@ def deploy( #pylint: disable=too-many-arguments
     """
     start_time = time.time()
 
+    if validators.url(artifacts_location):
+        _download_artifacts_from_url(artifacts_location, appstack)
+        artifacts_location = DEFAULT_ARTIFACTS_PATH
+
     cf_info = CfInfo(api_url=cf_api_endpoint, password=cf_password, user=cf_user,
                      org=cf_org, space=cf_space)
     filled_appstack = _get_filled_appstack(appstack, expanded_appstack, filled_appstack,
@@ -186,6 +193,53 @@ def fetch(artifacts_location, fetcher_config, expanded_appstack, appstack):
     with open(final_appstack_path) as appstack_file:
         filled_appstack_dict = yaml.load(appstack_file)
         _log.info('Content of %s file: \n %s', final_appstack_path, yaml.dump(filled_appstack_dict))
+
+
+@cli.command()
+@click.argument('ARTIFACTS_URL')
+@click.option('-a', '--appstack',
+              default=DEFAULT_APPSTACK_FILE, show_default=True,
+              help='Path to the file containing non-expanded appstack. Only used if expanded'
+                   'appstack has not been specified.')
+def download_apps(artifacts_url, appstack):
+    """
+    Downloads applications artifacts from specified source. Url should include '{name}'
+    parameter like here: http://artifacts.com/download/{name}
+    """
+    if not validators.url(artifacts_url):
+        _log.error('Value %s is not valid Url.', artifacts_url)
+        raise ApployerArgumentError('Provided invalid url')
+
+    _download_artifacts_from_url(artifacts_url, appstack)
+
+
+def _download_artifacts_from_url(url, appstack):
+    """
+    Does the neccessary things to download applications artifacts.
+
+    Args:
+        url:    address of artifacts server, i.e. http://artifacts.com/download/{name}
+                where 'name' param is dynamically replaced to app name
+        appstack: path to appstack file
+    """
+    if os.path.exists(DEFAULT_ARTIFACTS_PATH):
+        shutil.rmtree(DEFAULT_ARTIFACTS_PATH, ignore_errors=True)
+    os.makedirs(DEFAULT_ARTIFACTS_PATH)
+
+    with open(appstack) as appstack_file:
+        appstack_dict = yaml.load(appstack_file)
+
+    artifacts_names = set()
+    for app in appstack_dict['apps']:
+        artifacts_names.add(app.get('artifact_name', app.get('name')))
+
+    for artifact_name in artifacts_names:
+        artifact_url = url.format(name=artifact_name)
+        _log.info('Downloading artifact for %s app from %s', artifact_name, artifact_url)
+        proc = subprocess.Popen(['wget', '--no-check-certificate', '--content-disposition',
+                                 '-nv', artifact_url], cwd=DEFAULT_ARTIFACTS_PATH)
+        if proc.wait() != 0:
+            _log.error('Error during download! wget output:\n%s', proc.stdout.read())
 
 
 def _get_filled_appstack( #pylint: disable=too-many-arguments

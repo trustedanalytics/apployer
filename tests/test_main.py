@@ -19,7 +19,7 @@ from mock import MagicMock
 
 import pytest
 
-from apployer.main import _get_filled_appstack, ApployerArgumentError, _seconds_to_time
+from apployer.main import _get_filled_appstack, _download_artifacts_from_url, ApployerArgumentError, _seconds_to_time
 
 appstack_path = 'appstack_path'
 expanded_appstack_path = 'expanded_appstack_path'
@@ -80,6 +80,23 @@ def test_get_filled_appstack_with_none(monkeypatch):
     monkeypatch.setattr('os.path.exists', lambda path: False)
     with pytest.raises(ApployerArgumentError):
         _get_filled_appstack(None, None, None, None, None)
+
+
+def test_download_artifacts_from_url(monkeypatch):
+    monkeypatch.setattr('os.path.exists', lambda path: True)
+    shutil_mock = MagicMock()
+    monkeypatch.setattr('shutil.rmtree', shutil_mock)
+    os_mock = MagicMock()
+    monkeypatch.setattr('os.makedirs', os_mock)
+    monkeypatch.setattr('__builtin__.open', mock.mock_open(read_data='{"apps": [{"artifact_name": "a"}]}'))
+    wait_mock = MagicMock(return_value=0)
+    subprocess_mock = MagicMock(return_value=wait_mock)
+    monkeypatch.setattr('subprocess.Popen', subprocess_mock)
+    _download_artifacts_from_url('url', None)
+    assert shutil_mock.called
+    assert os_mock.called
+    assert subprocess_mock.called
+    assert wait_mock.wait.called
 
 
 @pytest.mark.parametrize('string, seconds', [
