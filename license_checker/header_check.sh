@@ -14,4 +14,5 @@
 # limitations under the License.
 #
 
-#
+mvn -f license_checker/license_checker.xml license:check
+exit $?
