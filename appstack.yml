@@ -131,7 +131,9 @@ apps:
     - name: hdfs-instance
       plan: multitenant
     - name: hdfs-for-atk
-      plan: shared
+      plan: create-user-directory
+    - name: hdfs-for-se
+      plan: get-user-directory
     - name: hdfs-gearpump
       plan: shared
     - name: hdfs-instance-bare
@@ -153,7 +155,7 @@ apps:
     auth_password: '{{ hbase_broker_user_pass }}'
     service_instances:
     - name: hbase-for-atk
-      plan: bare
+      plan: shared
 
 - name: zookeeper-broker
   app_properties:
@@ -232,6 +234,8 @@ apps:
       plan: shared
     - name: hive-for-dspublisher 
       plan: multitenant
+    - name: hive-for-atk
+      plan: shared
 
 - name: kubernetes-broker
   order: -2
@@ -273,7 +277,7 @@ apps:
 - name: atk
   register_in: application-broker
   app_properties:
-    buildpack: java_buildpack
+    buildpack: tap-java-buildpack
     env:
       description: TAP Analytics Toolkit
       display_name: TAP Analytics Toolkit
@@ -282,14 +286,13 @@ apps:
       UAA_CLIENT_NAME: '{{ atk_client_name }}'
       UAA_CLIENT_PASSWORD: '{{ atk_client_pass }}'
       UAA_URI: uaa.{{ run_domain }}
-      KEYTAB_VCAP: '{{ vcap_keytab_value }}'
-      KRB5_BASE64: '{{ krb5_base64 }}'
 
 - name: scoring-engine
   register_in: application-broker
   push_options:
     params: --no-start
   app_properties:
+    buildpack: tap-java-buildpack
     env:
       description: Scoring engine for TAP Analytics Toolkit models
       display_name: TAP Scoring Engine
