@@ -28,6 +28,8 @@ import urlparse
 import xml.etree.ElementTree as ET
 import ConfigParser
 
+from .expressions import ExpressionsEngine, FsKeyValueStore, return_fixed_output
+
 GENERATE_KEYTAB_SCRIPT = """#!/bin/sh
 
 function tmp_file () {
@@ -70,6 +72,7 @@ class ConfigurationExtractor(object):
         self._logger = logging.getLogger(__name__)
         self._hostname = config['jumpbox']['hostname']
         self._ssh_required = False if self._hostname == 'localhost' else True
+        self._ssh_connection = None
         self._hostport = config['jumpbox']['hostport']
         self._username = config['jumpbox']['username']
         self._ssh_key_filename = config['jumpbox']['key_filename']
@@ -112,6 +115,23 @@ class ConfigurationExtractor(object):
             self._logger.error('Cannot close connection to the JUMPBOX.')
             raise exc
 
+    def evaluate_expressions(self, deployment_variables):
+        self._logger.info('Evaluating expressions from deployment variables')
+        if self._ssh_required:
+            self._create_ssh_connection()
+
+        passwords_store = FsKeyValueStore(self._paths['passwords_store'], self._ssh_required,
+                                          self._ssh_connection or None)
+        self._exppressions_engine = ExpressionsEngine(passwords_store)
+        for key, value in deployment_variables.iteritems():
+            deployment_variables[key] = self._exppressions_engine.parse_and_apply_expression(key, value)
+
+        if self._ssh_required:
+                self._close_ssh_connection()
+
+        self._logger.info('Expressions evaluated')
+        return deployment_variables
+
     def get_deployment_configuration(self):
         self._logger.info('Getting deployment configuration')
         if self._ssh_required:
@@ -125,7 +145,7 @@ class ConfigurationExtractor(object):
         return dict(docker_yml_data.items() + cdh_manager_data.items())
 
     def _get_ansible_hosts(self):
-        inventory_file_content = self._return_fixed_output(
+        inventory_file_content = return_fixed_output(
             self._execute_command('sudo -i cat ' + self._paths['ansible_hosts']), rstrip=False)
         with tempfile.NamedTemporaryFile('w') as f:
             f.file.write(inventory_file_content)
@@ -140,17 +160,9 @@ class ConfigurationExtractor(object):
         else:
             return default_value
 
-    def _return_fixed_output(self, output, rstrip=True):
-        fixed_output = []
-        for line in output.split('\r\n'):
-            if 'unable to resolve' not in line and 'Warning:' not in line and 'Connection to' not in line:
-                fixed_output.append(line)
-        result = ''.join(fixed_output) if rstrip else '\r\n'.join(fixed_output)
-        return result
-
     def _get_data_from_cf_tiny_yaml(self):
         cf_tiny_yaml_file_content = self._execute_command('sudo -i cat ' + self._paths['cf_tiny_yml'])
-        cf_tiny_yaml_file_content = self._return_fixed_output(cf_tiny_yaml_file_content, rstrip=False)
+        cf_tiny_yaml_file_content = return_fixed_output(cf_tiny_yaml_file_content, rstrip=False)
         cf_tiny_yaml = yaml.load(cf_tiny_yaml_file_content)
         result = {
             "nats_ip": cf_tiny_yaml['properties']['nats']['machines'][0],
@@ -234,13 +246,13 @@ class ConfigurationExtractor(object):
             result['kubernetes_aws_secret_access_key'] = self._get_ansible_var('kubernetes_aws_secret_access_key')
             result['key_name'] = self._get_ansible_var('key_name')
             result['consul_dc'] = self._envname
-            result['consul_join'] = self._return_fixed_output(self._execute_command('host cdh-master-0')).split()[3]
+            result['consul_join'] = return_fixed_output(self._execute_command('host cdh-master-0')).split()[3]
             result['kubernetes_subnet'] = self._get_ansible_var('kubernetes_subnet_id')
 
             command_output = self._execute_command(
                 'aws --region {} ec2 describe-subnets --filters Name=subnet-id,Values={}'
                     .format(result['region'], result['kubernetes_subnet']))
-            subnet_json = json.loads(self._return_fixed_output(command_output, rstrip=False))
+            subnet_json = json.loads(return_fixed_output(command_output, rstrip=False))
             result['kubernetes_subnet_cidr'] = subnet_json['Subnets'][0]['CidrBlock']
             result['quay_io_username'] = self._get_ansible_var('quay_io_username')
             result['quay_io_password'] = self._get_ansible_var('quay_io_password')
@@ -340,13 +352,13 @@ class ConfigurationExtractor(object):
 
     def _get_mac_address(self):
         output = self._execute_command('curl http://169.254.169.254/latest/meta-data/network/interfaces/macs/')
-        return self._return_fixed_output(output)
+        return return_fixed_output(output)
 
     def _get_vpc_id(self):
         mac_address = self._get_mac_address()
         output = self._execute_command('curl http://169.254.169.254/latest/meta-data/network/interfaces/macs/{}/vpc-id'
                                        .format(mac_address))
-        return self._return_fixed_output(output)
+        return return_fixed_output(output)
 
     def _generate_inventory(self, workers_count, masters_count, envname):
         hosts = {
@@ -414,7 +426,7 @@ class ConfigurationExtractor(object):
             self._logger.error('Process failed with exit code %s and output %s', e.returncode, e.output)
             raise e
 
-        keytab_hash = self._return_fixed_output(keytab_hash)
+        keytab_hash = return_fixed_output(keytab_hash)
         self._logger.info('Keytab for %s principal has been generated.', principal_name)
         return keytab_hash
 
@@ -422,7 +434,7 @@ class ConfigurationExtractor(object):
         self._logger.info('Check is port %d open on %s machine.', port, hostname)
         port_checker_script = PORT_CHECKER_SCRIPT.format(hostname=hostname, port=port)
         self._generate_script(port_checker_script, '/tmp/check_port.py')
-        status = int(self._return_fixed_output(self._execute_command('sudo -i python /tmp/check_port.py')))
+        status = int(return_fixed_output(self._execute_command('sudo -i python /tmp/check_port.py')))
         return False if status else True
 
     def _generate_base64_for_file(self, file_path):
@@ -437,7 +449,7 @@ class ConfigurationExtractor(object):
                 .format(self._cdh_manager_ssh_user, self._cdh_manager_hostname, file_path)
 
         base64_file_hash = self._execute_command(GENERATE_BASE_64)
-        base64_file_hash = self._return_fixed_output(base64_file_hash)
+        base64_file_hash = return_fixed_output(base64_file_hash)
         self._logger.info('Base64 hash for %s file on %s machine has been generated.', file_path,
                           self._cdh_manager_hostname)
         return base64_file_hash

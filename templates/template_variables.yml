@@ -61,13 +61,13 @@ wssb_version: 0.4.1
 application_broker_user: admin
 
 # password that Application Broker will use for basic auth handling
-application_broker_pass: admin
+application_broker_pass: '%random 32%'
 
 # username for basic auth in App dependency discoverer
 app_dep_disc_user: admin
 
 # username for basic auth in App dependency discoverer
-app_dep_disc_pass: password
+app_dep_disc_pass: '%random 32%'
 
 # ATK client name
 atk_client_name: 'atk-client'
@@ -76,26 +76,26 @@ atk_client_name: 'atk-client'
 cdh_broker_user: admin
 
 # password that the CDH broker will use
-cdh_broker_user_pass: admin
+cdh_broker_user_pass: '%random 32%'
 
 # username for the docker broker (set in bosh docker deployment YAML file)
 docker_broker_user: containers
 
 # password for the docker broker (set in bosh docker deployment YAML file)
-docker_broker_user_pass: containers
+docker_broker_user_pass: '%random 32%'
 
 # username that the Gearpump broker will use
 gearpump_broker_user: user
 
 # password that the Gearpump broker will use
-gearpump_broker_user_pass: awhile-scary-melting-globe
+gearpump_broker_user_pass: '%random 32%'
 
 # organization and space, where core TAP applications will be pushed
 core_org_name: trustedanalytics
 core_space_name: platform
 
 # gearpump credentials and settings
-gearpump_broker_user_pass: randompassword
+gearpump_broker_user_pass: '%random 32%'
 
 #gearpump's dashboard name
 gearpump_ui_name: "gearpump-dashboard"
@@ -113,7 +113,7 @@ h2o_broker_user_pass: organized-widely-football-dance
 hbase_broker_user: user
 
 # password that the HBASE broker will use
-hbase_broker_user_pass: democrats-midst-writing-tender
+hbase_broker_user_pass: '%random 32%'
 
 # TODO
 hbase_broker_znode_in_zookeeper: /org/intel/hbasebroker/metadata
@@ -125,7 +125,7 @@ hdfs_broker_folder_on_hdfs: /org/intel/hdfsbroker
 hdfs_broker_user: user
 
 # password that the HDFS broker will use
-hdfs_broker_user_pass: calmed-jumps-jerk-apologies
+hdfs_broker_user_pass: '%random 32%'
 
 # hdfs super user name - used by hdfs-auth-gateway in auth-gateway
 hdfs_super_user: authgateway
@@ -137,7 +137,7 @@ hgm_principal: hgm
 kafka_broker_user: admin
 
 # password that the Kafka broker will use
-kafka_broker_user_pass: admin
+kafka_broker_user_pass: '%random 32%'
 
 authgateway_principals_suffix: /sys
 
@@ -151,25 +151,25 @@ sentry_superuser: hive
 smtp_broker_user: admin
 
 # password that the SMTP broker will use
-smtp_broker_user_pass: admin
+smtp_broker_user_pass: '%random 32%'
 
 # username that the YARN broker will use
 yarm_broker_user: user
 
 # password that the YARN broker will use
-yarn_broker_user_pass: little-gold-bubbles-heavenly
+yarn_broker_user_pass: '%random 32%'
 
 # username that the HIVE broker will use
 hive_broker_user: user
 
 # password that the HIVE broker will use
-hive_broker_user_pass: little-platinum-bubbles-heavenly
+hive_broker_user_pass: '%random 32%'
 
 # username that the KERBEROS broker will use
 kerberos_broker_user: admin
 
 # password that the KERBEROS broker will use
-kerberos_broker_user_pass: little-silver-bubbles-heavenly
+kerberos_broker_user_pass: '%random 32%'
 
 # TODO
 yarn_broker_znode_in_zookeeper: /org/intel/yarnbroker/metadata
@@ -181,7 +181,7 @@ zookeeper_broker_metadata: /org/intel/zookeeperbroker/metadata
 zookeeper_broker_user: user
 
 # password that the Zookeeper broker will use
-zookeeper_broker_user_pass: bother-collar-thumb-shut
+zookeeper_broker_user_pass: '%random 32%'
 
 # TODO
 zookeeper_broker_userspace: /org/intel/zookeeperbroker/userspace
@@ -194,11 +194,11 @@ broker_system_user_password: cf1
 
 kubernetes_broker_user: admin
 
-kubernetes_broker_password: password
+kubernetes_broker_password: '%random 32%'
 
 demiurge_username: admin
 
-demiurge_password: admin
+demiurge_password: '%random 32%'
 
 quay_io_url: quay.io
 
