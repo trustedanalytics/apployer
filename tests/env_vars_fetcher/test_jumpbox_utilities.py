@@ -39,7 +39,8 @@ def fetcher_config():
         },
         "paths": {
             "cf_tiny_yml": "/root/cf.yml",
-            "ansible_hosts": "/etc/ansible/hosts"
+            "ansible_hosts": "/etc/ansible/hosts",
+            "passwords_store": "/tmp/apployer_passwords"
         },
         "envname": "trustedanalytics",
         "workers_count": 3,

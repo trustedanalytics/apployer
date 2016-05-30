@@ -48,7 +48,8 @@ def fill_appstack(expanded_appstack_file, fetcher_config_path):
         fetcher_config_path = DEFAULT_FETCHER_CONF
     fetcher_config = _get_fetcher_config(fetcher_config_path)
     env_conf_values = _get_environment_config(fetcher_config)
-    filled_config = _get_full_deployment_config(env_conf_values)
+    deployment_variables = _evaluate_deployment_variables(fetcher_config)
+    filled_config = _get_full_deployment_config(deployment_variables, env_conf_values)
     _fill_appstack(expanded_appstack_file, filled_config, DEFAULT_FILLED_APPSTACK_PATH)
     return DEFAULT_FILLED_APPSTACK_PATH
 
@@ -69,11 +70,19 @@ def _get_environment_config(fetcher_config):
     return env_conf
 
 
-def _get_full_deployment_config(env_conf_values):
+def _evaluate_deployment_variables(fetcher_config):
     _log.debug("Loading deployment configuration file: %s", DEPLOY_CONF_FILE)
     with open(DEPLOY_CONF_FILE, 'r') as variables_file:
         deployment_variables = yaml.load(variables_file)
 
+    _log.info("Evaluating deployment variables...")
+    with ConfigurationExtractor(fetcher_config) as cf_extractor:
+        deployment_variables = cf_extractor.evaluate_expressions(deployment_variables)
+    _log.debug('Deployment variables evaluated:\n%s', pprint.pformat(deployment_variables))
+    return deployment_variables
+
+
+def _get_full_deployment_config(deployment_variables, env_conf_values):
     for key, value in env_conf_values.iteritems():
         if not deployment_variables.get(key):
             deployment_variables[key] = value

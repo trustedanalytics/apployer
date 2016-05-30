@@ -8,7 +8,7 @@ kubernetes_used: False
 # access information for jumpbox
 jumpbox:
  # ip address or hostname
- hostname:
+ hostname: localhost
  # port for ssh connection (default 22)
  hostport: 22
  # username for ssh connection (default: ubuntu)
@@ -38,3 +38,5 @@ masters_count: 3
 paths:
  cf_tiny_yml: /root/cf.yml
  ansible_hosts: /etc/ansible/hosts
+ passwords_store: /root/apployer_passwords/
+
