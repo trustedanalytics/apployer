@@ -144,7 +144,7 @@ apps:
     auth_password: '{{ hbase_broker_user_pass }}'
     service_instances:
     - name: hbase-for-atk
-      plan: shared
+      plan: bare
 
 - name: zookeeper-broker
   app_properties:
@@ -281,6 +281,10 @@ apps:
     env:
       description: Scoring engine for TAP Analytics Toolkit models
       display_name: TAP Scoring Engine
+      CC_URI: api.{{ run_domain }}
+      UAA_CLIENT_NAME: '{{ atk_client_name }}'
+      UAA_CLIENT_PASSWORD: '{{ atk_client_pass }}'
+      UAA_URI: uaa.{{ run_domain }}
 
 - name: gearpump-dashboard
   register_in: application-broker
