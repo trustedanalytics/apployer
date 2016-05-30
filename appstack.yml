@@ -252,9 +252,9 @@ apps:
     services:
       - elasticsearch17-multinode
       - elk-multinode
-      - mongodb-clustered
-      - mysql56-clustered
-      - postgresql94-clustered
+      - mongodb30-multinode
+      - mysql56-multinode
+      - postgresql94-multinode
   user_provided_services:
     - name: kubernetes-broker
       credentials:
