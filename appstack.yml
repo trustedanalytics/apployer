@@ -480,8 +480,6 @@ apps:
     credentials:
       host: http://demiurge.{{ apps_domain }}
 
-- name: h2o-scoring-engine-publisher
-
 # WSSB brokers
 
 - name: cdh-broker
