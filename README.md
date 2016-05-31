@@ -5,7 +5,7 @@ Tool for deployment of Cloud Foundry application stack.
 Application stack consists of interdependent CF applications, brokers, services and buildpacks.
 
 ## Usage (deployment)
-Apployer can be run on any machine that has access to a TAP instance (created according to [Infrastructure Deployment](https://github.com/trustedanalytics/platform-wiki-0.7/wiki/Getting%20Started%20Guide#platform-and-infrastructure-deployment)). It is, however, recommended to run it on TAP's bastion machine to minimize network latency to Cloud Foundry.
+Apployer can be run on any machine that has access to a TAP instance (created according to [Infrastructure Deployment](https://github.com/trustedanalytics/platform-wiki-latest/wiki/Getting%20Started%20Guide#platform-and-infrastructure-deployment)). It is, however, recommended to run it on TAP's bastion machine to minimize network latency to Cloud Foundry.
 
 1. Obtain a TAP release package or create it with [platform-parent](https://github.com/trustedanalytics/platform-parent) project.
 1. Unpack the release package. Go to Apployer's directory inside the release package: `cd <package>/tools/apployer`.
