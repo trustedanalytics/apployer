@@ -221,7 +221,9 @@ class AppConfig(DataContainer): # pylint: disable=too-many-instance-attributes
 
     def __init__(self, name, app_properties=None,   # pylint: disable=too-many-arguments
                  user_provided_services=None, broker_config=None, artifact_name=None,
-                 register_in=None, push_options=None, order=None, push_if=True):
+                 register_in=None, push_options=None, order=None, push_if=True,
+                 register_config=None):
+
         if not name:
             raise MalformedAppStackError("Application's name not specified.")
         self.name = name
@@ -230,6 +232,7 @@ class AppConfig(DataContainer): # pylint: disable=too-many-instance-attributes
         self.broker_config = broker_config
         self.artifact_name = artifact_name or name
         self.register_in = register_in
+        self.register_config = register_config
         self.push_options = push_options or PushOptions()
         self.push_if = push_if
 

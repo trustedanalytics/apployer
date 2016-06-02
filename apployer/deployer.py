@@ -162,6 +162,8 @@ def register_in_application_broker(registered_app, application_broker, app_domai
     image_url = app_env.get('image_url')
     if image_url:
         command.extend(['-i', image_url])
+    if registered_app.register_config:
+        command.extend(['-c', registered_app.register_config])
 
     _log.info('Running registration script: %s', ' '.join(command))
     subprocess.check_call(command)
