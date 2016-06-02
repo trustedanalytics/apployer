@@ -176,6 +176,8 @@ apps:
       plan: shared
     - name: zookeeper-for-hive
       plan: shared
+    - name: zookeeper-for-sp
+      plan: shared
 
 - name: yarn-broker
   app_properties:
@@ -287,6 +289,13 @@ apps:
       UAA_CLIENT_PASSWORD: '{{ atk_client_pass }}'
       UAA_URI: uaa.{{ run_domain }}
 
+- name: scoring-pipelines
+  register_in: application-broker
+  app_properties:
+    env:
+      description: Scoring Pipelines for TAP Analytics Toolkit models and python UDFs 
+      display_name: TAP Scoring Pipelines
+      
 - name: gearpump-dashboard
   register_in: application-broker
   push_options:
@@ -530,6 +539,8 @@ apps:
     - name: kafka
       plan: shared
     - name: gateway-kafka
+      plan: shared
+    - name: kafka-for-sp
       plan: shared
 
 - name: kerberos-broker
