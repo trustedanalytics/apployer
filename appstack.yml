@@ -291,7 +291,7 @@ apps:
 
 - name: scoring-engine
   register_in: application-broker
-  register_config: '[{"service_name":"hdfs", "parameters":["uri"]}]'
+  register_config: '[{"service_name":"hdfs-for-se", "parameters":["uri"]}]'
   push_options:
     params: --no-start
   app_properties:
