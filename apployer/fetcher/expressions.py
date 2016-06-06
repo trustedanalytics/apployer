@@ -69,7 +69,7 @@ class FsKeyValueStore(object):
             return ssh_out.read() if ssh_out else ssh_err.read()
         else:
             self._logger.info('Calling local command: %s', command)
-            return subprocess.check_output(command.split())
+            return subprocess.check_output(command, shell=True)
 
 
     def put(self, key, value):
