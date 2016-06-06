@@ -246,6 +246,8 @@ apps:
     post_command: 'cf bind-service console kubernetes-broker;cf restage console'
   app_properties:
     env:
+      AUTH_USER: '{{ kubernetes_broker_user }}'
+      AUTH_PASS: '{{ kubernetes_broker_password }}'
       SERVICES_DOMAIN: '{{ apps_domain }}'
       KUBE_REPO_USER: '{{ quay_io_username }}'
       KUBE_REPO_PASS: '{{ quay_io_password }}'
