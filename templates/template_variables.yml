@@ -82,7 +82,7 @@ cdh_broker_user_pass: '%random 32%'
 docker_broker_user: containers
 
 # password for the docker broker (set in bosh docker deployment YAML file)
-docker_broker_user_pass: '%random 32%'
+docker_broker_user_pass: containers
 
 # username that the Gearpump broker will use
 gearpump_broker_user: user
