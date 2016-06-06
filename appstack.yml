@@ -310,6 +310,14 @@ apps:
       password: password
       GEARPUMP_MASTERS: localhost:9999
 
+- name: orientdb-dashboard
+  register_in: application-broker
+  app_properties:
+    env:
+      description: Dashboard for managing OrientDB
+      display_name: OrientDB Dashboard
+      IMAGE_URL: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAYAAAA6/NlyAAAFGUlEQVR4Ae3bA3AtSx4H4I5tXa9t69m2bdu2bdu2bdt+r/RsXCbp/daprppogrOpO1Vf8fS/z+/MdKenZxJG61hp7R3+Y0k2JYzJIwn8Gx5kfcZ82Incwnv8kDEdtowD6eZumhijYWFh3idyChUU3BctopQi8tRp5UYikd0JhRi4mmVpyBl4FaYSiWxSqIEncBMrERhMjSquJvawMQU59jp4gHvoIDDQGnPwHrHgzzDVXElkewL9bw97EBN7FGZgOInIO8xPoL/tG7mLmDiDypzzQgl1jGcKEyghd+htmEnkIX5CoD9tf82HxMT9NDOQH76CiSzOLpzG9TzEDaxNObkDz82nRLq5jR8S6KvtBkwjJj7gN/T3KlmCk3iFL+kkMp1rmJ8aArkDt/MosYd7+BtFZJ4VjiWSmsX2BLLatrAyt/A5MfEGm9LMkI7jYg4gJl5lIxozvnQ5h3E9R7A723EIl3EINaTtKliCm5hKTHTzEHMTGJaJa76MsTiNS1mIakIPRTRQ13O1Rgk1NFBC6OF7HMVHxAy39T2P5A9dwzXEDJ9yEDUMto86TqWLmOEe0vlj2EKvzDfERBf3swCl5Fm3/4ErmJkxhOYY7rDpbJme5U7O4/sE8vUBbRzG1GTobDyii5X0Fo8uzqOd4RhChzGTyBU0MuIrr3IOJ3I/32e4+mrnSj5hYcLIB4bvcSGLExjOvv7CYdQzamvsIpooZbh/4BJq+9iAmH3MPgZzOfo8+fa3ci5v26glMOAi27Iik6mlhKwxVMNkVmBfmkYhcB3HcR37szSTqSTQZ5HFuIc3uZqD2JSVWYoV2Ij9uILXmMqdNI5C4ApOJdLFV7zC6axIB4HsIvyW25O163S+ZCrdxMRpVIx4YNiJSOobHmVHvkcxmUUmcgQfE/vh4LTgCIbemEiWTp5lExoIZF4uS3ErU/9/AwNTuYSfZYeGFlbhZj4hkjqJ8gK6pDv5qodOIt08yxKU9FW8ngU5kEf5jFlE7hilSauSs5jGS1zAnqzN0izF0qzFzpzOEzzDmgNZ1rUzN9tzNhfQymjsj2/KSkyiiiIC6WcDlbTwe1bIs65toWT4A88+Zh+jMabKRuj2cDzFjOqrC/uy/AhsAMzBTfyRwKgE/ivv8SQ/Yjgf1V5D5FIaGPGwlZxGpJtL6WCo+2nmRDqJTGU9AiMUFlbi82SlcxE/GMJt2vGcyjRiD0/xnZHcl/45TxETXTzM0pST5yZ/Dm6lM6OfHQkMY1CYxI3EDN1cTTt5toC34C26iKSeYBLDvi17MZ1EUh9zIj8mJBr+rYzifyujgSZKCD2U8kuOJOvh3RrD+dTwj9xJNzExg9tYjgoCafuduYXjOOjfjuNWzqONrFvWJXmUtO/zqWZIwzawLi8TE59zBxvQRiCrzhJ8QSR1GZWZbeGHXJJcXe/wI3KGhFrm43KmEZnF5zzH0SxOI4G+ao7nRWKim33oz/caxwXJn6i1yL+MYyFO4zqu5CS2ZSEmUEZgIEvQC4iJL1hiAHXGcymRyFEEcr9XWU09dVTlfscS9iAmXmEiA508HyJyLbWF+p7X2nQReziNSgZabxE+5BEmUpB3VkvzFZHIlyxDYDA3LkfxCJMLNfBSSeD7aWOw9X7KuUwp1MDL8DWRWWxInnql/JnWQh3D6xGJPMgEcj9co6hQA+9B5CvWJDCmt4LOJ3IOdWP9P1nG8TxP8CPCWA+8OI+xAGN/d5O1WXy0J5i/A3ob7Dxq/u3sAAAAAElFTkSuQmCC
+
 # APPS
 
 - name: metrics-provider
@@ -753,6 +761,9 @@ brokers:
   - name: platform-tests-mongodb
     plan: free
     label: mongodb26
+  - name: orientdb
+    plan: free
+    label: orientdb
 
 security_groups:
 - name: kubernetes
