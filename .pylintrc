@@ -20,3 +20,6 @@ disable=W1620,E1607,I0021,E1601,W1618,W1613,W1607,E1604,W1611,W1632,W1628,W1637,
 
 # Tells whether to display a full report or only the messages
 reports=no
+
+[FORMAT]
+max-line-length=110
