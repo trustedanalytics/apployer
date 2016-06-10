@@ -19,6 +19,7 @@ import ConfigParser
 from apployer.fetcher.jumpbox_utilities import ConfigurationExtractor
 from mock import MagicMock
 
+
 @pytest.fixture
 def fetcher_config():
     return {
@@ -47,6 +48,7 @@ def fetcher_config():
         "masters_count": 3
     }
 
+
 @pytest.fixture
 def config_ini(section):
     config = ConfigParser.RawConfigParser()
@@ -70,36 +72,20 @@ def test_creating_ConfigurationExtractor_instance(fetcher_config):
         assert ce._cdh_manager_ssh_user == fetcher_config['cdh-manager']['ssh_user']
 
 
-def test_ssh_connection(fetcher_config, monkeypatch):
-    paramiko_mock = MagicMock()
-    monkeypatch.setattr('apployer.fetcher.jumpbox_utilities.paramiko', paramiko_mock)
-    with ConfigurationExtractor(fetcher_config) as ce:
-        ce._create_ssh_connection()
-        ce._close_ssh_connection()
-        assert ce._ssh_connection.set_missing_host_key_policy.called
-        assert paramiko_mock.SSHClient.called
-        assert paramiko_mock.AutoAddPolicy.called
-        assert ce._ssh_connection.connect.called
-        assert ce._ssh_connection.close.called
-
-
 def test_get_deployment_configuration(fetcher_config, monkeypatch):
-    create_ssh_connection_mock = MagicMock()
-    close_ssh_connection_mock = MagicMock()
     get_ansible_hosts = MagicMock()
-    get_jumpboxes_vars = MagicMock()
     get_data_from_cf_tiny_mock = MagicMock()
     get_data_from_cdh_manager_mock = MagicMock()
-    monkeypatch.setattr('apployer.fetcher.jumpbox_utilities.ConfigurationExtractor._create_ssh_connection', create_ssh_connection_mock)
-    monkeypatch.setattr('apployer.fetcher.jumpbox_utilities.ConfigurationExtractor._close_ssh_connection', close_ssh_connection_mock)
-    monkeypatch.setattr('apployer.fetcher.jumpbox_utilities.ConfigurationExtractor._get_ansible_hosts', get_ansible_hosts)
-    monkeypatch.setattr('apployer.fetcher.jumpbox_utilities.ConfigurationExtractor._get_data_from_cf_tiny_yaml', get_data_from_cf_tiny_mock)
-    monkeypatch.setattr('apployer.fetcher.jumpbox_utilities.ConfigurationExtractor._get_data_from_cdh_manager', get_data_from_cdh_manager_mock)
-    monkeypatch.setattr('apployer.fetcher.jumpbox_utilities.ConfigurationExtractor._execute_command', get_data_from_cdh_manager_mock)
+    monkeypatch.setattr('apployer.fetcher.jumpbox_utilities.ConfigurationExtractor._get_ansible_hosts',
+                        get_ansible_hosts)
+    monkeypatch.setattr('apployer.fetcher.jumpbox_utilities.ConfigurationExtractor._get_data_from_cf_tiny_yaml',
+                        get_data_from_cf_tiny_mock)
+    monkeypatch.setattr('apployer.fetcher.jumpbox_utilities.ConfigurationExtractor._get_data_from_cdh_manager',
+                        get_data_from_cdh_manager_mock)
+    monkeypatch.setattr('apployer.fetcher.jumpbox_utilities.ConfigurationExtractor.execute_command',
+                        get_data_from_cdh_manager_mock)
     with ConfigurationExtractor(fetcher_config) as ce:
         ce.get_deployment_configuration()
-        assert create_ssh_connection_mock.called
-        assert close_ssh_connection_mock.called
         assert get_ansible_hosts.called
         assert get_data_from_cdh_manager_mock.called
         assert get_data_from_cf_tiny_mock.called
@@ -136,16 +122,19 @@ def test_get_data_from_inventory(fetcher_config, monkeypatch):
         ]
     }
     yaml_mock.return_value = inventory_content
-    monkeypatch.setattr('apployer.fetcher.jumpbox_utilities.ConfigurationExtractor._execute_command', _execute_command_mock)
+    monkeypatch.setattr('apployer.fetcher.jumpbox_utilities.ConfigurationExtractor.execute_command',
+                        _execute_command_mock)
     monkeypatch.setattr('apployer.fetcher.jumpbox_utilities.yaml.load', yaml_mock)
     with ConfigurationExtractor(fetcher_config) as ce:
         ce._inventory = MagicMock()
         result = ce._get_data_from_cf_tiny_yaml()
         assert result["nats_ip"] == inventory_content['properties']['nats']['machines'][0]
         assert result["cf_admin_password"] == inventory_content['properties']['loggregator_endpoint']['shared_secret']
-        assert result["cf_admin_client_password"] == inventory_content['properties']['loggregator_endpoint']['shared_secret']
+        assert result["cf_admin_client_password"] == inventory_content['properties']['loggregator_endpoint'][
+            'shared_secret']
         assert result["apps_domain"] == inventory_content['properties']['domain']
-        assert result["tap_console_password"] == inventory_content['properties']['loggregator_endpoint']['shared_secret']
+        assert result["tap_console_password"] == inventory_content['properties']['loggregator_endpoint'][
+            'shared_secret']
         assert result["email_address"] == inventory_content['properties']['login']['smtp']['senderEmail']
         assert result["run_domain"] == inventory_content['properties']['domain']
         assert result["smtp_pass"] == '"{}"'.format(inventory_content['properties']['login']['smtp']['password'])
@@ -216,5 +205,3 @@ def test_get_java_http_proxy(fetcher_config, monkeypatch):
         assert ce._get_java_http_proxy() == '-Dhttp.proxyHost=proxy.example.com -Dhttp.proxyPort=8080 ' \
                                             '-Dhttps.proxyHost=proxy.example.com -Dhttps.proxyPort=8080 ' \
                                             '-Dhttp.nonProxyHosts=*.apps.example.com|localhost|127.*|[::1]'
-
-
