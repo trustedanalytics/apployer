@@ -319,8 +319,8 @@ apps:
     params: --no-start
   app_properties:
     env:
-      description: Dashboard for managing GearPump service
-      display_name: GearPump Dashboard
+      description: Dashboard for managing Apache Gearpump service
+      display_name: Apache Gearpump Dashboard
       username: username
       password: password
       GEARPUMP_MASTERS: localhost:9999
