@@ -21,7 +21,6 @@ import json
 import yaml
 import logging
 import tempfile
-import paramiko
 import subprocess
 import shutil
 import urlparse
@@ -72,7 +71,6 @@ class ConfigurationExtractor(object):
         self._logger = logging.getLogger(__name__)
         self._hostname = config['jumpbox']['hostname']
         self._ssh_required = False if self._hostname == 'localhost' else True
-        self._ssh_connection = None
         self._hostport = config['jumpbox']['hostport']
         self._username = config['jumpbox']['username']
         self._ssh_key_filename = config['jumpbox']['key_filename']
@@ -93,60 +91,36 @@ class ConfigurationExtractor(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
-    # Cdh launcher methods
-    def _create_ssh_connection(self):
-        try:
-            self._logger.info('Creating connection to JUMPBOX %s.', self._hostname)
-            self._ssh_connection = paramiko.SSHClient()
-            self._ssh_connection.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            self._ssh_connection.connect(self._hostname, username=self._username,
-                                         key_filename=self._ssh_key_filename, password=self._ssh_key_password)
-            self._logger.info('Connection to JUMPBOX %s established.', self._hostname)
-        except Exception as exc:
-            self._logger.error(
-                'Cannot create connection to JUMPBOX host. Check your settings in fetcher_config.yml file.')
-            raise exc
+    @property
+    def paths(self):
+        return self._paths
 
-    def _close_ssh_connection(self):
-        try:
-            self._ssh_connection.close()
-            self._logger.info('Connection to JUMPBOX has been closed.')
-        except Exception as exc:
-            self._logger.error('Cannot close connection to the JUMPBOX.')
-            raise exc
+    @property
+    def ssh_required(self):
+        return self._ssh_required
 
     def evaluate_expressions(self, deployment_variables):
         self._logger.info('Evaluating expressions from deployment variables')
-        if self._ssh_required:
-            self._create_ssh_connection()
 
-        passwords_store = FsKeyValueStore(self._paths['passwords_store'], self._ssh_required,
-                                          self._ssh_connection or None)
+        passwords_store = FsKeyValueStore(self)
         self._exppressions_engine = ExpressionsEngine(passwords_store)
         for key, value in deployment_variables.iteritems():
             deployment_variables[key] = self._exppressions_engine.parse_and_apply_expression(key, value)
-
-        if self._ssh_required:
-                self._close_ssh_connection()
 
         self._logger.info('Expressions evaluated')
         return deployment_variables
 
     def get_deployment_configuration(self):
         self._logger.info('Getting deployment configuration')
-        if self._ssh_required:
-            self._create_ssh_connection()
         self._jumpboxes_vars = self._get_ansible_hosts()
         docker_yml_data = self._get_data_from_cf_tiny_yaml()
         cdh_manager_data = self._get_data_from_cdh_manager()
-        if self._ssh_required:
-            self._close_ssh_connection()
         self._logger.info('Deployment configuration downloaded')
         return dict(docker_yml_data.items() + cdh_manager_data.items())
 
     def _get_ansible_hosts(self):
         inventory_file_content = return_fixed_output(
-            self._execute_command('sudo -i cat ' + self._paths['ansible_hosts']), rstrip=False)
+            self.execute_command('sudo -i cat ' + self._paths['ansible_hosts']), rstrip=False)
         with tempfile.NamedTemporaryFile('w') as f:
             f.file.write(inventory_file_content)
             f.file.close()
@@ -161,7 +135,7 @@ class ConfigurationExtractor(object):
             return default_value
 
     def _get_data_from_cf_tiny_yaml(self):
-        cf_tiny_yaml_file_content = self._execute_command('sudo -i cat ' + self._paths['cf_tiny_yml'])
+        cf_tiny_yaml_file_content = self.execute_command('sudo -i cat ' + self._paths['cf_tiny_yml'])
         cf_tiny_yaml_file_content = return_fixed_output(cf_tiny_yaml_file_content, rstrip=False)
         cf_tiny_yaml = yaml.load(cf_tiny_yaml_file_content)
         result = {
@@ -191,9 +165,9 @@ class ConfigurationExtractor(object):
         deployments_settings_endpoint = 'http://{}:{}/api/v10/cm/deployment'.format(self._cdh_manager_hostname,
                                                                                     self._cdh_manager_port)
         self._logger.info('Send request to %s', deployments_settings_endpoint)
-        response = self._execute_command('curl -X GET {} -u {}:{}'
-                                         .format(deployments_settings_endpoint, self._cdh_manager_user,
-                                                 self._cdh_manager_password))
+        response = self.execute_command('curl -X GET {} -u {}:{}'
+                                        .format(deployments_settings_endpoint, self._cdh_manager_user,
+                                                self._cdh_manager_password))
         deployment_settings = json.loads(response)
         result = dict()
 
@@ -246,10 +220,10 @@ class ConfigurationExtractor(object):
             result['kubernetes_aws_secret_access_key'] = self._get_ansible_var('kubernetes_aws_secret_access_key')
             result['key_name'] = self._get_ansible_var('key_name')
             result['consul_dc'] = self._envname
-            result['consul_join'] = return_fixed_output(self._execute_command('host cdh-master-0')).split()[3]
+            result['consul_join'] = return_fixed_output(self.execute_command('host cdh-master-0')).split()[3]
             result['kubernetes_subnet'] = self._get_ansible_var('kubernetes_subnet_id')
 
-            command_output = self._execute_command(
+            command_output = self.execute_command(
                 'aws --region {} ec2 describe-subnets --filters Name=subnet-id,Values={}'
                     .format(result['region'], result['kubernetes_subnet']))
             subnet_json = json.loads(return_fixed_output(command_output, rstrip=False))
@@ -327,10 +301,10 @@ class ConfigurationExtractor(object):
         non_proxy_hosts = self._convert_no_proxy_to_java_style(no_proxy)
 
         return (self._fill_if_var_not_empty('-Dhttp.proxyHost={} ', http_proxy_host) + \
-               self._fill_if_var_not_empty('-Dhttp.proxyPort={} ', http_proxy_port) + \
-               self._fill_if_var_not_empty('-Dhttps.proxyHost={} ', https_proxy_host) + \
-               self._fill_if_var_not_empty('-Dhttps.proxyPort={} ', https_proxy_port) + \
-               self._fill_if_var_not_empty('-Dhttp.nonProxyHosts={} ', non_proxy_hosts)).strip()
+                self._fill_if_var_not_empty('-Dhttp.proxyPort={} ', http_proxy_port) + \
+                self._fill_if_var_not_empty('-Dhttps.proxyHost={} ', https_proxy_host) + \
+                self._fill_if_var_not_empty('-Dhttps.proxyPort={} ', https_proxy_port) + \
+                self._fill_if_var_not_empty('-Dhttp.nonProxyHosts={} ', non_proxy_hosts)).strip()
 
     def _parse_url_if_not_empty(self, url):
         if url:
@@ -341,23 +315,23 @@ class ConfigurationExtractor(object):
 
     def _convert_no_proxy_to_java_style(self, no_proxy):
         if not no_proxy:
-                 return ''
-        no_proxy = no_proxy.replace(',.', '|*.') 
+            return ''
+        no_proxy = no_proxy.replace(',.', '|*.')
         no_proxy = no_proxy.replace(',', '|')
-        no_proxy += '|localhost|127.*|[::1]' #these entries don't reside in /etc/ansible/hosts
+        no_proxy += '|localhost|127.*|[::1]'  # these entries don't reside in /etc/ansible/hosts
         return no_proxy
 
     def _fill_if_var_not_empty(self, template, value):
         return template.format(value) if value else ''
 
     def _get_mac_address(self):
-        output = self._execute_command('curl http://169.254.169.254/latest/meta-data/network/interfaces/macs/')
+        output = self.execute_command('curl http://169.254.169.254/latest/meta-data/network/interfaces/macs/')
         return return_fixed_output(output)
 
     def _get_vpc_id(self):
         mac_address = self._get_mac_address()
-        output = self._execute_command('curl http://169.254.169.254/latest/meta-data/network/interfaces/macs/{}/vpc-id'
-                                       .format(mac_address))
+        output = self.execute_command('curl http://169.254.169.254/latest/meta-data/network/interfaces/macs/{}/vpc-id'
+                                      .format(mac_address))
         return return_fixed_output(output)
 
     def _generate_inventory(self, workers_count, masters_count, envname):
@@ -373,22 +347,28 @@ class ConfigurationExtractor(object):
         hosts['cdh-manager'].append(hosts['cdh-master'][2])
         return hosts
 
-    def _execute_command(self, command):
+    def execute_command(self, command):
         if self._ssh_required:
-            self._logger.info('Calling remote command: %s', command)
-            ssh_in, ssh_out, ssh_err = self._ssh_connection.exec_command(command, get_pty=True)
-            return ssh_out.read() if ssh_out else ssh_err.read()
+            self._logger.info('Execute remote command {} on {} machine.'.format(command, self._hostname))
+            command_template = 'ssh -i {keyname} -tt {username}@{hostname} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no {command}'
+            command_to_execute = command_template.format(keyname=self._ssh_key_filename, username=self._username,
+                                                         hostname=self._hostname, command=command)
+            output = subprocess.check_output(command_to_execute.split())
+            return return_fixed_output(output, rstrip=False)
         else:
             self._logger.info('Calling local command: %s', command)
-            return subprocess.check_output(command.split())
+            return subprocess.check_output(command, shell=True)
 
     def _generate_script(self, script, target):
         with tempfile.NamedTemporaryFile('w') as f:
             f.file.write(script)
             f.file.close()
             if self._ssh_required:
-                sftp = self._ssh_connection.open_sftp()
-                sftp.put(f.name, target)
+                command = 'scp -i {keyname} {script_name} {username}@{hostname}:{target}'.format(
+                    keyname=self._ssh_key_filename, script_name=f.name, username=self._username,
+                    hostname=self._hostname, target=target)
+                self._logger.info('Execute command: {}'.format(command))
+                subprocess.check_call(command.split())
             else:
                 shutil.copyfile(f.name, target)
 
@@ -419,9 +399,9 @@ class ConfigurationExtractor(object):
                                                                                principal_name)
 
         try:
-            self._execute_command(COPY_KEYTAB_SCRIPT)
-            self._execute_command(CHMOD_KEYTAB_SCRIPT)
-            keytab_hash = self._execute_command(EXECUTE_KEYTAB_SCRIPT)
+            self.execute_command(COPY_KEYTAB_SCRIPT)
+            self.execute_command(CHMOD_KEYTAB_SCRIPT)
+            keytab_hash = self.execute_command(EXECUTE_KEYTAB_SCRIPT)
         except subprocess.CalledProcessError as e:
             self._logger.error('Process failed with exit code %s and output %s', e.returncode, e.output)
             raise e
@@ -434,7 +414,7 @@ class ConfigurationExtractor(object):
         self._logger.info('Check is port %d open on %s machine.', port, hostname)
         port_checker_script = PORT_CHECKER_SCRIPT.format(hostname=hostname, port=port)
         self._generate_script(port_checker_script, '/tmp/check_port.py')
-        status = int(return_fixed_output(self._execute_command('sudo -i python /tmp/check_port.py')))
+        status = int(return_fixed_output(self.execute_command('sudo -i python /tmp/check_port.py')))
         return False if status else True
 
     def _generate_base64_for_file(self, file_path):
@@ -448,19 +428,19 @@ class ConfigurationExtractor(object):
                                '-o StrictHostKeyChecking=no base64 {}' \
                 .format(self._cdh_manager_ssh_user, self._cdh_manager_hostname, file_path)
 
-        base64_file_hash = self._execute_command(GENERATE_BASE_64)
+        base64_file_hash = self.execute_command(GENERATE_BASE_64)
         base64_file_hash = return_fixed_output(base64_file_hash)
         self._logger.info('Base64 hash for %s file on %s machine has been generated.', file_path,
                           self._cdh_manager_hostname)
         return base64_file_hash
 
     def _get_client_config_for_service(self, service_name, cluster_name):
-        self._execute_command('wget http://{}:{}/api/v10/clusters/{}/services/{}/clientConfig '
-                              '--password {} --user {} -P {}'
-                              .format(self._cdh_manager_hostname, self._cdh_manager_port, cluster_name, service_name,
-                                      self._cdh_manager_password, self._cdh_manager_user, service_name))
-        base64_file_hash = self._execute_command('base64 {}/clientConfig'.format(service_name))
-        self._execute_command('rm -r {}'.format(service_name))
+        self.execute_command('wget http://{}:{}/api/v10/clusters/{}/services/{}/clientConfig '
+                             '--password {} --user {} -P {}'
+                             .format(self._cdh_manager_hostname, self._cdh_manager_port, cluster_name, service_name,
+                                     self._cdh_manager_password, self._cdh_manager_user, service_name))
+        base64_file_hash = self.execute_command('base64 {}/clientConfig'.format(service_name))
+        self.execute_command('rm -r {}'.format(service_name))
         result = base64_file_hash.splitlines()
         return ''.join(result)
 

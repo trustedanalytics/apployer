@@ -21,8 +21,6 @@ import logging
 import re
 import random
 import string
-import subprocess
-
 
 RANDOM_EXPRESSION_PATTERN = re.compile("^[ \t]*%[ \t]*random[ \t]*([0-9]+)[ \t]*%[ \t]*$")
 
@@ -34,12 +32,10 @@ class InMemoryKeyValueStore(object):
     def __init__(self):
         self._store = dict()
 
-
     def put(self, key, value):
         """Store [value] under [key]. Overwrites previous value.
         """
         self._store[key] = value
-
 
     def get(self, key):
         """Get value stored under [key] if it exist, None otherwise.
@@ -51,40 +47,28 @@ class FsKeyValueStore(object):
     """Key value store using file in particular directory as storage system.
     """
 
-    def __init__(self, store_path, ssh_required, ssh_connection):
+    def __init__(self, cf_extractor):
         def _normalize_path(path):
             return path + ('' if path.endswith('/') else '/')
 
         self._logger = logging.getLogger(__name__)
-        self._store_path = _normalize_path(store_path)
-        self._ssh_required = ssh_required
-        self._ssh_connection = ssh_connection
-        self._execute_command('sudo -i mkdir -p ' + self._store_path)
-
-
-    def _execute_command(self, command):
-        if self._ssh_required:
-            self._logger.info('Calling remote command: %s', command)
-            _, ssh_out, ssh_err = self._ssh_connection.exec_command(command, get_pty=True)
-            return ssh_out.read() if ssh_out else ssh_err.read()
-        else:
-            self._logger.info('Calling local command: %s', command)
-            return subprocess.check_output(command, shell=True)
-
+        self._store_path = _normalize_path(cf_extractor.paths['passwords_store'])
+        self._ssh_required = cf_extractor.ssh_required
+        self.execute_command = cf_extractor.execute_command
+        self.execute_command('sudo -i mkdir -p ' + self._store_path)
 
     def put(self, key, value):
         """Store [value] in file named [key]. Overwrites previous file.
         """
-        self._execute_command('sudo -i bash -c \'echo -n "{0}" > {1}{2}\''
-                              .format(value, self._store_path, key))
-
+        self.execute_command('sudo -i bash -c \'echo -n "{0}" > {1}{2}\''
+                             .format(value, self._store_path, key))
 
     def get(self, key):
         """Get value stored in file named [key] if it exist, None otherwise.
         """
-        output = self._execute_command(
-            'sudo -i bash -c \'if [ -f "{0}" ]; then cat "{0}"; else echo -n "FILE_NOT_FOUND"; fi\''
-            .format(self._store_path + key))
+        output = self.execute_command(
+            'sudo -i bash -c \'if [ -f "{0}" ]; then cat "{0}"; else echo -n "FILE_NOT_FOUND"; fi\''.format(
+                self._store_path + key))
         value = return_fixed_output(output)
         return None if value == 'FILE_NOT_FOUND' else value
 
@@ -97,7 +81,6 @@ class ExpressionsEngine(object):
 
     def __init__(self, key_value_store):
         self._store = key_value_store
-
 
     def parse_and_apply_expression(self, key, value):
         """Parses value read from appstack and apply expression if it is recognized as expression.
@@ -113,7 +96,6 @@ class ExpressionsEngine(object):
         if RANDOM_EXPRESSION_PATTERN.match(str(value)):
             return self._store.get(key) or self._genarate_and_save_random(key, value)
         return value
-
 
     def _genarate_and_save_random(self, key, value):
         random_string_length = int(RANDOM_EXPRESSION_PATTERN.split(value)[1])
@@ -139,8 +121,8 @@ def return_fixed_output(output, rstrip=True):
 
 def _non_debug_line(line):
     return 'unable to resolve' not in line \
-            and 'Warning:' not in line \
-            and 'Connection to' not in line
+           and 'Warning:' not in line \
+           and 'Connection to' not in line
 
 
 def generate_random_alphanumeric(length):
