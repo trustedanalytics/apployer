@@ -114,10 +114,11 @@ class ConfigurationExtractor(object):
     def get_deployment_configuration(self):
         self._logger.info('Getting deployment configuration')
         self._jumpboxes_vars = self._get_ansible_hosts()
-        docker_yml_data = self._get_data_from_cf_tiny_yaml()
+        cf_tiny_yml_data = self._get_data_from_cf_tiny_yaml()
+        docker_broker_yml = self._get_data_from_docker_broker_yaml()
         cdh_manager_data = self._get_data_from_cdh_manager()
         self._logger.info('Deployment configuration downloaded')
-        return dict(docker_yml_data.items() + cdh_manager_data.items())
+        return dict(cf_tiny_yml_data.items() + cdh_manager_data.items() + docker_broker_yml.items())
 
     def _get_ansible_hosts(self):
         inventory_file_content = return_fixed_output(
@@ -141,7 +142,6 @@ class ConfigurationExtractor(object):
         cf_tiny_yaml = yaml.load(cf_tiny_yaml_file_content)
         result = {
             "nats_ip": cf_tiny_yaml['properties']['nats']['machines'][0],
-            "h2o_provisioner_host": cf_tiny_yaml['jobs'][0]['networks'][0]['static_ips'][0],
             "h2o_provisioner_port": DEFAULT_H2O_PROVISIONER_PORT,
             "cf_admin_password": cf_tiny_yaml['properties']['loggregator_endpoint']['shared_secret'],
             "cf_admin_client_password": cf_tiny_yaml['properties']['loggregator_endpoint']['shared_secret'],
@@ -159,7 +159,16 @@ class ConfigurationExtractor(object):
         }
         for i, node in enumerate(self._inventory['cdh-master']):
             result['master_node_host_{}'.format(i + 1)] = node
+
         return result
+
+    def _get_data_from_docker_broker_yaml(self):
+        docker_broker_yaml_file_content = self.execute_command('sudo -i cat ' + self._paths['docker_broker_yml'])
+        docker_broker_yaml_file_content = return_fixed_output(docker_broker_yaml_file_content, rstrip=False)
+        docker_broker_yaml = yaml.load(docker_broker_yaml_file_content)
+        return {
+            "h2o_provisioner_host": docker_broker_yaml['jobs'][0]['networks'][0]['static_ips'][0]
+        }
 
     def _get_data_from_cdh_manager(self):
         self._cdh_manager_hostname = self._inventory['cdh-manager'][0]

@@ -40,6 +40,7 @@ def fetcher_config():
         },
         "paths": {
             "cf_tiny_yml": "/root/cf.yml",
+            "docker_broker_yml": "/root/docker-broker.yml",
             "ansible_hosts": "/etc/ansible/hosts",
             "passwords_store": "/tmp/apployer_passwords"
         },
@@ -79,6 +80,8 @@ def test_get_deployment_configuration(fetcher_config, monkeypatch):
     monkeypatch.setattr('apployer.fetcher.jumpbox_utilities.ConfigurationExtractor._get_ansible_hosts',
                         get_ansible_hosts)
     monkeypatch.setattr('apployer.fetcher.jumpbox_utilities.ConfigurationExtractor._get_data_from_cf_tiny_yaml',
+                        get_data_from_cf_tiny_mock)
+    monkeypatch.setattr('apployer.fetcher.jumpbox_utilities.ConfigurationExtractor._get_data_from_docker_broker_yaml',
                         get_data_from_cf_tiny_mock)
     monkeypatch.setattr('apployer.fetcher.jumpbox_utilities.ConfigurationExtractor._get_data_from_cdh_manager',
                         get_data_from_cdh_manager_mock)
