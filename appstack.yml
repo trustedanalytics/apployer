@@ -594,6 +594,8 @@ apps:
       plan: shared
     - name: kerberos-for-atk
       plan: shared
+    - name: kerberos-gearpump
+      plan: shared
 
 - name: smtp-broker
   artifact_name: wssb
