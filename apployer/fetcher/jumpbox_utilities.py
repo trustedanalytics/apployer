@@ -115,9 +115,10 @@ class ConfigurationExtractor(object):
         self._jumpboxes_vars = self._get_ansible_hosts()
         cf_tiny_yml_data = self._get_data_from_cf_tiny_yaml()
         docker_broker_yml = self._get_data_from_docker_broker_yaml()
+        defaults_cdh_yml = self._get_data_from_defaults_cdh_yaml()
         cdh_manager_data = self._get_data_from_cdh_manager()
         self._logger.info('Deployment configuration downloaded')
-        return dict(cf_tiny_yml_data.items() + cdh_manager_data.items() + docker_broker_yml.items())
+        return dict(cf_tiny_yml_data.items() + cdh_manager_data.items() + docker_broker_yml.items() + defaults_cdh_yml.items())
 
     def _get_ansible_hosts(self):
         inventory_file_content = return_fixed_output(
@@ -167,6 +168,14 @@ class ConfigurationExtractor(object):
         docker_broker_yaml = yaml.load(docker_broker_yaml_file_content)
         return {
             "h2o_provisioner_host": docker_broker_yaml['jobs'][0]['networks'][0]['static_ips'][0]
+        }
+
+    def _get_data_from_defaults_cdh_yaml(self):
+        defaults_cdh_yaml_file_content = self.execute_command('sudo -i cat ' + self._paths['defaults_cdh_yml'])
+        defaults_cdh_yaml_file_content = return_fixed_output(defaults_cdh_yaml_file_content, rstrip=False)
+        defaults_cdh_yaml = yaml.load(defaults_cdh_yaml_file_content)
+        return {
+            "kerberos_password": defaults_cdh_yaml['cf_kerberos_password']
         }
 
     def _get_data_from_cdh_manager(self):

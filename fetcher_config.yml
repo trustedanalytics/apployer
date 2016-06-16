@@ -38,6 +38,7 @@ masters_count: 3
 paths:
  cf_tiny_yml: /root/cf.yml
  docker_broker_yml: /root/docker-broker.yml
+ defaults_cdh_yml: /root/platform-ansible/defaults/cdh.yml
  ansible_hosts: /etc/ansible/hosts
  passwords_store: /root/apployer_passwords/
 

@@ -41,6 +41,7 @@ def fetcher_config():
         "paths": {
             "cf_tiny_yml": "/root/cf.yml",
             "docker_broker_yml": "/root/docker-broker.yml",
+            "defaults_cdh_yml": "/root/platform-ansible/defaults/cdh.yml",
             "ansible_hosts": "/etc/ansible/hosts",
             "passwords_store": "/tmp/apployer_passwords"
         },
@@ -76,13 +77,17 @@ def test_creating_ConfigurationExtractor_instance(fetcher_config):
 def test_get_deployment_configuration(fetcher_config, monkeypatch):
     get_ansible_hosts = MagicMock()
     get_data_from_cf_tiny_mock = MagicMock()
+    get_data_from_docker_broker_mock = MagicMock()
+    get_data_from_defaults_cdh_mock = MagicMock()
     get_data_from_cdh_manager_mock = MagicMock()
     monkeypatch.setattr('apployer.fetcher.jumpbox_utilities.ConfigurationExtractor._get_ansible_hosts',
                         get_ansible_hosts)
     monkeypatch.setattr('apployer.fetcher.jumpbox_utilities.ConfigurationExtractor._get_data_from_cf_tiny_yaml',
                         get_data_from_cf_tiny_mock)
     monkeypatch.setattr('apployer.fetcher.jumpbox_utilities.ConfigurationExtractor._get_data_from_docker_broker_yaml',
-                        get_data_from_cf_tiny_mock)
+                        get_data_from_docker_broker_mock)
+    monkeypatch.setattr('apployer.fetcher.jumpbox_utilities.ConfigurationExtractor._get_data_from_defaults_cdh_yaml',
+                        get_data_from_defaults_cdh_mock)
     monkeypatch.setattr('apployer.fetcher.jumpbox_utilities.ConfigurationExtractor._get_data_from_cdh_manager',
                         get_data_from_cdh_manager_mock)
     monkeypatch.setattr('apployer.fetcher.jumpbox_utilities.ConfigurationExtractor.execute_command',
@@ -92,6 +97,8 @@ def test_get_deployment_configuration(fetcher_config, monkeypatch):
         assert get_ansible_hosts.called
         assert get_data_from_cdh_manager_mock.called
         assert get_data_from_cf_tiny_mock.called
+        assert get_data_from_docker_broker_mock.called
+        assert get_data_from_defaults_cdh_mock.called
 
 
 def test_get_data_from_inventory(fetcher_config, monkeypatch):
