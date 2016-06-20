@@ -28,9 +28,20 @@ Apployer can be run on any machine that has access to a TAP instance (created ac
 
 Be sure that you have configured /etc/hosts properly. For this purpose run command hostname. As a result of this operation you will see hostname of your machine. Now open /etc/hosts file and find there one line: 127.0.0.1 <your_hostname>. If you cannot find it, you should add it there.
 
-## Testing
+## Local development in PyCharm
 * Install Tox: `$ sudo pip install --upgrade tox`
 * Run tests: `$ tox`
+* Open apployer repository in PyCharm
+* Go to File->Settings...->Project:apployer->Project Interpreter->Add Local
+* Set python interpreter to cloned_apployer_repository_dir/.tox/py27/bin/python and click OK.
+* Next go to Run->Debug and add new Python configuration
+* Set parameters to given values and click OK:
+    * Script: cloned_apployer_repository_dir/.tox/py27/bin/apployer
+    * Script parameters: apployer_command (e.g. -v fetch apps)
+    * Python Interpreter: previously create interpreter from .tox directory
+    * Working directory: cloned_apployer_repository_dir
+* Prepare necessary files according to [Usage](#usage-deployment) section and run debug in PyCharm IDE.
+    
 
 ## Adding new element to TAP deployment
 To add applications, services, brokers or overwriting their configuration, modify `appstack.yml` file in the following way:
