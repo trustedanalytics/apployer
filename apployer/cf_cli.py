@@ -249,7 +249,7 @@ def push(app_location, manifest_location, options='', timeout=180):
         CommandFailedError: "cf push" failed.
     """
     command = [CF, 'push', '-t', str(timeout), '-f', manifest_location] + options.split()
-    _run_command(command, work_dir=app_location, redirect_output=False)
+    _run_command(command, work_dir=app_location, skip_output=False)
 
 
 def restage(app_name):
@@ -261,7 +261,7 @@ def restage(app_name):
     Raises:
         CommandFailedError: "cf restage" failed (returned non-zero code).
     """
-    _run_command([CF, 'restage', app_name], redirect_output=False)
+    _run_command([CF, 'restage', app_name], skip_output=False)
 
 
 def restart(app_name):
@@ -273,7 +273,7 @@ def restart(app_name):
     Raises:
         CommandFailedError: "cf restart" failed (returned non-zero code).
     """
-    _run_command([CF, 'restart', app_name], redirect_output=False)
+    _run_command([CF, 'restart', app_name], skip_output=False)
 
 
 def service(service_name):
@@ -370,10 +370,8 @@ def api(api_url, ssl_validation):
     command = [CF, 'api', api_url]
     if not ssl_validation:
         command.insert(-1, '--skip-ssl-validation')
-    proc = Popen(command)
-    if proc.wait() != 0:
-        raise CommandFailedError('Command failed: {}'.format(' '.join(command)))
 
+    _run_command(command, skip_output=False)
 
 def auth(username, password):
     """Logs into CF CLI as a specific user.
@@ -385,9 +383,9 @@ def auth(username, password):
     Raises:
         CommandFailedError: When the command fails (returns non-zero code).
     """
-    proc = Popen([CF, 'auth', username, password])
-    if proc.wait() != 0:
-        raise CommandFailedError('Failed to login user: {}'.format(username))
+
+    _log.debug('Trying to log as user: %s', username)
+    _run_command([CF, 'auth', username, password], skip_output=False)
 
 
 def target(org, space):
@@ -419,27 +417,28 @@ def get_command_output(command):
     if return_code == 0:
         return output
     else:
-        raise CommandFailedError('Failed command: {}\nOutput: {}'.format(' '.join(command), output))
+        raise CommandFailedError('Command failed: {}\nOutput: {}'.format(' '.join(command), output))
 
 
-def _run_command(command, work_dir='.', redirect_output=True):
+def _run_command(command, work_dir='.', skip_output=True):
     """Runs a generic command without capturing its output.
 
     Args:
         command (list[str]): List of command parts (like in constructor of Popen)
         work_dir (str): Working directory in which the command should be run.
-        redirect_output (bool): If set to True, standard and and error outputs of the process will
+        skip_output (bool): If set to True, standard and and error outputs of the process will
             be captured. Otherwise, they'll go to output of Apployer's process.
 
     Raises:
         CommandFailedError: When the command fails (returns non-zero code).
     """
-    if redirect_output:
-        proc = Popen(command, stdout=PIPE, stderr=STDOUT, cwd=work_dir)
+    proc = Popen(command, stdout=PIPE, stderr=STDOUT, cwd=work_dir)
+    output = proc.stdout.read()
+    if skip_output:
         if proc.wait() != 0:
-            raise CommandFailedError('Failed command: {}\nOutput: {}'
-                                     .format(' '.join(command), proc.stdout.read()))
+            raise CommandFailedError('Command failed: {}\nOutput: {}'
+                                     .format(' '.join(command), output))
     else:
-        proc = Popen(command, cwd=work_dir)
+        _log.debug(output)
         if proc.wait() != 0:
-            raise CommandFailedError('Failed command: {}'.format(' '.join(command)))
+            raise CommandFailedError('Command failed: {}'.format(' '.join(command)))

@@ -283,15 +283,19 @@ def _get_filled_appstack( #pylint: disable=too-many-arguments
 
 def _setup_logging(level):
     log_formatter = logging.Formatter(
-        '%(asctime)s-%(levelname)s-%(name)s: %(message)s',
-        '%H:%M:%S')
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(log_formatter)
+        '%(asctime)s-%(levelname)s-%(name)s: %(message)s', '%H:%M:%S')
+
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setFormatter(log_formatter)
+
+    global_log_file = 'apployer.log'
+    file_handler = logging.FileHandler(global_log_file, mode='w')
+    file_handler.setFormatter(log_formatter)
 
     project_logger = logging.getLogger(apployer.__name__)
     project_logger.setLevel(level)
-    project_logger.addHandler(handler)
-
+    project_logger.addHandler(stdout_handler)
+    project_logger.addHandler(file_handler)
 
 class ApployerArgumentError(Exception):
     """Something isn't right with command line arguments."""
