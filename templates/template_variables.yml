@@ -22,7 +22,7 @@ CDH_cluster_name: CDH-cluster
 cf_admin_username: admin
 
 # version of TAP
-platform_version: 0.7.0
+platform_version: 0.7.1
 
 # version of CF CLI compatiple with the platform
 cf_cli_version: 6.12.4
