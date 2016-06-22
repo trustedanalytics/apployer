@@ -1,0 +1,6 @@
+---
+applications:
+- name: J
+  services:
+  - fake3
+  - fake4

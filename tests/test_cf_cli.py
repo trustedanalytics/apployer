@@ -22,10 +22,11 @@ from apployer import cf_cli
 from apployer.cf_cli import CommandFailedError, CfInfo
 from subprocess import PIPE, STDOUT
 
+
 def test_run_command_output_without_redirection_fail(mock_popen):
     mock_popen.set_command('cf bla', returncode=1)
     with pytest.raises(CommandFailedError):
-        cf_cli._run_command([cf_cli.CF, 'bla'], skip_output=False)
+        cf_cli.run_command([cf_cli.CF, 'bla'], skip_output=False)
 
 
 def test_get_app_env(mock_popen):
@@ -150,7 +151,7 @@ def test_push_app(mock_popen):
 
     cf_cli.push(app_location, manifest_location, ' '.join(command[-2:]), timeout)
 
-    assert call.Popen(command, stdout=PIPE, stderr=STDOUT, cwd=app_location) in mock_popen.mock.method_calls
+    assert call.Popen(command, stdout=PIPE, stderr=STDOUT, cwd=app_location, shell=False) in mock_popen.mock.method_calls
 
 
 def test_restage_app(mock_popen):

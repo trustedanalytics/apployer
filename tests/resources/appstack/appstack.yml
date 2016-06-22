@@ -66,6 +66,12 @@ apps:
     - name: H_instance_2
       plan: free
 
+- name: I
+  push_if: false
+
+- name: J
+  push_if: 'false'
+
 user_provided_services:
 - name: global_user_provided_instance_1
   credentials:

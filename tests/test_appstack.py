@@ -21,7 +21,8 @@ import pytest
 from apployer.appstack import AppConfig, AppStack, DataContainer, MalformedAppStackError
 from .fake_appstack import (TEST_APP_X, TEST_APP_Y, TEST_APPSTACK_DICT,
                             TEST_APPSTACK_USER_PROVIDED_SERVICES, TEST_APPSTACK, TEST_APP_MANIFESTS,
-                            TEST_APPSTACK_WITH_MANIFESTS, BUILDPACK_NAME, TEST_SECURITY_GROUP)
+                            TEST_APPSTACK_WITH_MANIFESTS, BUILDPACK_NAME, TEST_SECURITY_GROUP,
+                            TEST_POST_ACTION)
 
 
 def test_data_container_eq():
@@ -112,6 +113,7 @@ def test_parse_appstack():
     assert appstack.user_provided_services == TEST_APPSTACK_USER_PROVIDED_SERVICES
     assert appstack.buildpacks == [BUILDPACK_NAME]
     assert appstack.security_groups == [TEST_SECURITY_GROUP]
+    assert appstack.post_actions == [TEST_POST_ACTION]
 
 
 def test_parse_invalid_appstack():

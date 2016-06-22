@@ -1,0 +1,7 @@
+---
+applications:
+- name: I
+  services:
+  - fake1
+  - fake2
+

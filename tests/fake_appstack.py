@@ -17,7 +17,8 @@
 import copy
 
 from apployer.appstack import (AppConfig, AppStack, BrokerConfig,
-                               SecurityGroup, ServiceInstance, UserProvidedService)
+                               SecurityGroup, ServiceInstance, UserProvidedService,
+                               PostAction)
 
 
 def _services_to_dicts(service_list):
@@ -57,6 +58,9 @@ TEST_APPSTACK_USER_PROVIDED_SERVICES = [
 TEST_SECURITY_GROUP = SecurityGroup(name='test_security_group', protocol='tcp',
                                     destination='10.10.10.0/24', ports='1-50')
 
+TEST_POST_ACTION = PostAction(name='fake-post-action', commands=['echo test1',
+                                                                 'echo test2'])
+
 BUILDPACK_NAME = 'example-buildpack'
 
 TEST_APPSTACK_DICT = {
@@ -75,7 +79,8 @@ TEST_APPSTACK_DICT = {
     ],
     'user_provided_services': _services_to_dicts(TEST_APPSTACK_USER_PROVIDED_SERVICES),
     'buildpacks': [BUILDPACK_NAME],
-    'security_groups': [TEST_SECURITY_GROUP.to_dict()]
+    'security_groups': [TEST_SECURITY_GROUP.to_dict()],
+    'post_actions': [TEST_POST_ACTION.to_dict()]
 }
 
 _new_appstack_dict = copy.deepcopy(TEST_APPSTACK_DICT)
@@ -158,5 +163,9 @@ TEST_APPSTACK_WITH_MANIFESTS = AppStack.from_appstack_dict({
         'protocol': 'tcp',
         'destination': '10.10.10.0/24',
         'push_if': True
+    }],
+    'post_actions': [{
+        'name': 'fake-post-action',
+        'commands': ['echo test1', 'echo test2']
     }]
 })

@@ -97,7 +97,9 @@ def test_appstack_expander(tmpdir, artifacts_location):
         'E': 'H',
         'F': 'GH',
         'G': 'H',
-        'H': ''
+        'H': '',
+        'I': '',
+        'J': ''
     }
 
     expand_appstack(appstack_file_path, artifacts_location, expanded_appstack_path)

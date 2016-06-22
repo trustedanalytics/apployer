@@ -521,6 +521,9 @@ apps:
 
 - name: h2o-scoring-engine-publisher
 
+- name: space-shuttle-demo
+  push_if: 'false'
+
 # WSSB brokers
 
 - name: cdh-broker
@@ -793,3 +796,13 @@ security_groups:
   protocol: tcp
   destination: '{{ kubernetes_subnet_cidr }}'
   ports: 1-65535
+
+post_actions:
+- name: deploy-space-shuttle
+  commands:
+  - mkdir space-shuttle-work-dir
+  - unzip space-shuttle-demo-*.zip -d space-shuttle-work-dir
+  - virtualenv space-shuttle-work-dir/venv
+  - space-shuttle-work-dir/venv/bin/pip install space-shuttle-work-dir/deploy/vendor/*
+  - space-shuttle-work-dir/venv/bin/python space-shuttle-work-dir/deploy/deploy.py --path_to_model=space-shuttle-work-dir/space-shuttle-model.tar --no_interact --project_dir=$(pwd)/space-shuttle-work-dir --no_build
+

@@ -100,6 +100,8 @@ def deploy_appstack(cf_login_data, filled_appstack, artifacts_path, push_strateg
                     DEPLOYER_OUTPUT,
                     artifacts_path)
     _restart_apps(filled_appstack, apps_to_restart)
+    _execute_post_actions(filled_appstack.post_actions, artifacts_path)
+
     _log.info('DEPLOYMENT FINISHED')
 
 
@@ -276,6 +278,15 @@ def setup_service_instance(broker, service_instance):
         broker_name = service_instance.label or broker.name
         cf_cli.create_service(broker_name, service_instance.plan, service_instance.name)
         _log.debug('Created instance %s of service %s.', service_instance.name, broker_name)
+
+
+def _execute_post_actions(post_actions, artifacts_path):
+    for post_action in post_actions:
+        _log.info(str.format('Executing post action: {}', post_action.name))
+        for command in post_action.commands:
+            _log.info(str.format('Executing command: {}', command))
+            cf_cli.run_command(command, work_dir=artifacts_path,
+                               skip_output=False, shell=True)
 
 
 class UpsiDeployer(object):

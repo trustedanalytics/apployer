@@ -85,7 +85,7 @@ def bind_service(app_name, instance_name):
     Raises:
         CommandFailedError: When the command fails (returns non-zero code).
     """
-    _run_command([CF, 'bind-service', app_name, instance_name])
+    run_command([CF, 'bind-service', app_name, instance_name])
 
 
 def buildpacks():
@@ -107,7 +107,7 @@ def unbind_service(app_name, instance_name):
     Raises:
         CommandFailedError: When the command fails (returns non-zero code).
     """
-    _run_command([CF, 'unbind-service', app_name, instance_name])
+    run_command([CF, 'unbind-service', app_name, instance_name])
 
 
 def create_buildpack(buildpack_name, buildpack_path, position=1):
@@ -121,8 +121,8 @@ def create_buildpack(buildpack_name, buildpack_path, position=1):
     Raises:
         CommandFailedError: When the command fails (returns non-zero code).
     """
-    _run_command([CF, 'create-buildpack',
-                  buildpack_name, buildpack_path, str(position), '--enable'])
+    run_command([CF, 'create-buildpack',
+                 buildpack_name, buildpack_path, str(position), '--enable'])
 
 
 def create_org(org_name):
@@ -134,7 +134,7 @@ def create_org(org_name):
     Raises:
         CommandFailedError: When the command fails (returns non-zero code).
     """
-    _run_command([CF, 'create-org', org_name])
+    run_command([CF, 'create-org', org_name])
 
 
 def create_service(broker, plan, instance_name):
@@ -148,7 +148,7 @@ def create_service(broker, plan, instance_name):
     Raises:
         CommandFailedError: When "cf create-service" fails (returns non-zero code).
     """
-    _run_command([CF, 'create-service', broker, plan, instance_name])
+    run_command([CF, 'create-service', broker, plan, instance_name])
 
 
 def create_service_broker(name, user, password, url):
@@ -163,7 +163,7 @@ def create_service_broker(name, user, password, url):
     Raises:
         CommandFailedError: When "cf create-service-broker" fails (returns non-zero code).
     """
-    _run_command([CF, 'create-service-broker', name, user, password, url])
+    run_command([CF, 'create-service-broker', name, user, password, url])
 
 
 def create_space(space_name, org_name):
@@ -176,7 +176,7 @@ def create_space(space_name, org_name):
     Raises:
         CommandFailedError: When the command fails (returns non-zero code).
     """
-    _run_command([CF, 'create-space', space_name, '-o', org_name])
+    run_command([CF, 'create-space', space_name, '-o', org_name])
 
 
 def create_user_provided_service(service_name, credentials):
@@ -190,7 +190,7 @@ def create_user_provided_service(service_name, credentials):
     Raises:
         CommandFailedError: When the command fails (returns non-zero code).
     """
-    _run_command([CF, 'create-user-provided-service', service_name, '-p', credentials])
+    run_command([CF, 'create-user-provided-service', service_name, '-p', credentials])
 
 
 def enable_service_access(broker):
@@ -202,7 +202,7 @@ def enable_service_access(broker):
     Raises:
         CommandFailedError: When the command fails (returns non-zero code).
     """
-    _run_command([CF, 'enable-service-access', broker])
+    run_command([CF, 'enable-service-access', broker])
 
 
 def env(app_name):
@@ -249,7 +249,7 @@ def push(app_location, manifest_location, options='', timeout=180):
         CommandFailedError: "cf push" failed.
     """
     command = [CF, 'push', '-t', str(timeout), '-f', manifest_location] + options.split()
-    _run_command(command, work_dir=app_location, skip_output=False)
+    run_command(command, work_dir=app_location, skip_output=False)
 
 
 def restage(app_name):
@@ -261,7 +261,7 @@ def restage(app_name):
     Raises:
         CommandFailedError: "cf restage" failed (returned non-zero code).
     """
-    _run_command([CF, 'restage', app_name], skip_output=False)
+    run_command([CF, 'restage', app_name], skip_output=False)
 
 
 def restart(app_name):
@@ -273,7 +273,7 @@ def restart(app_name):
     Raises:
         CommandFailedError: "cf restart" failed (returned non-zero code).
     """
-    _run_command([CF, 'restart', app_name], skip_output=False)
+    run_command([CF, 'restart', app_name], skip_output=False)
 
 
 def service(service_name):
@@ -297,7 +297,7 @@ def update_buildpack(buildpack_name, buildpack_path):
     Raises:
         CommandFailedError: When the command fails (returns non-zero code).
     """
-    _run_command([CF, 'update-buildpack', buildpack_name, '-p', buildpack_path])
+    run_command([CF, 'update-buildpack', buildpack_name, '-p', buildpack_path])
 
 
 def update_service_broker(name, user, password, url):
@@ -312,7 +312,7 @@ def update_service_broker(name, user, password, url):
     Raises:
         CommandFailedError: When "cf update-service-broker" fails (returns non-zero code).
     """
-    _run_command([CF, 'update-service-broker', name, user, password, url])
+    run_command([CF, 'update-service-broker', name, user, password, url])
 
 
 def update_user_provided_service(service_name, credentials):
@@ -326,7 +326,7 @@ def update_user_provided_service(service_name, credentials):
     Raises:
         CommandFailedError: When the command fails (returns non-zero code).
     """
-    _run_command([CF, 'update-user-provided-service', service_name, '-p', credentials])
+    run_command([CF, 'update-user-provided-service', service_name, '-p', credentials])
 
 
 def create_security_group(security_group, path_to_json):
@@ -340,7 +340,7 @@ def create_security_group(security_group, path_to_json):
      Raises:
          CommandFailedError: When the command fails (returns non-zero code).
      """
-    _run_command([CF, 'create-security-group', security_group, path_to_json])
+    run_command([CF, 'create-security-group', security_group, path_to_json])
 
 
 def bind_security_group(security_group, org, space):
@@ -354,7 +354,7 @@ def bind_security_group(security_group, org, space):
     Raises:
         CommandFailedError: When the command fails (returns non-zero code).
     """
-    _run_command([CF, 'bind-security-group', security_group, org, space])
+    run_command([CF, 'bind-security-group', security_group, org, space])
 
 
 def api(api_url, ssl_validation):
@@ -371,7 +371,8 @@ def api(api_url, ssl_validation):
     if not ssl_validation:
         command.insert(-1, '--skip-ssl-validation')
 
-    _run_command(command, skip_output=False)
+    run_command(command, skip_output=False)
+
 
 def auth(username, password):
     """Logs into CF CLI as a specific user.
@@ -385,7 +386,7 @@ def auth(username, password):
     """
 
     _log.debug('Trying to log as user: %s', username)
-    _run_command([CF, 'auth', username, password], skip_output=False)
+    run_command([CF, 'auth', username, password], skip_output=False)
 
 
 def target(org, space):
@@ -398,7 +399,7 @@ def target(org, space):
     Raises:
         CommandFailedError: When the command fails (returns non-zero code).
     """
-    _run_command([CF, 'target', '-o', org, '-s', space])
+    run_command([CF, 'target', '-o', org, '-s', space])
 
 
 def get_command_output(command):
@@ -420,7 +421,7 @@ def get_command_output(command):
         raise CommandFailedError('Command failed: {}\nOutput: {}'.format(' '.join(command), output))
 
 
-def _run_command(command, work_dir='.', skip_output=True):
+def run_command(command, work_dir='.', skip_output=True, shell=False):
     """Runs a generic command without capturing its output.
 
     Args:
@@ -432,7 +433,7 @@ def _run_command(command, work_dir='.', skip_output=True):
     Raises:
         CommandFailedError: When the command fails (returns non-zero code).
     """
-    proc = Popen(command, stdout=PIPE, stderr=STDOUT, cwd=work_dir)
+    proc = Popen(command, stdout=PIPE, stderr=STDOUT, cwd=work_dir, shell=shell)
     output = proc.stdout.read()
     if skip_output:
         if proc.wait() != 0:

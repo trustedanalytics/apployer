@@ -183,12 +183,23 @@ def _substitute_services(
             # We don't care about this edge since all global user provided services will
             # be created before first application is deployed.
             pass
+        elif not _to_bool(dependency[0].push_if):
+            # We don't care about applications that will not be pushed to CF
+            pass
         else:
             raise MalformedAppStackError("Service instance: " + service_name + " for: " +
                                          dependency[0].artifact_name + " isn't defined anywhere!")
 
     final_graph.remove_nodes_from(service_nodes)
     return final_graph
+
+
+def _to_bool(push_if):
+    if isinstance(push_if, bool):
+        return push_if
+    if isinstance(push_if, str):
+        return str.lower(push_if) != 'false'
+    return True
 
 
 def _get_app_deployment_sequences(graph):

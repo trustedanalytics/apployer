@@ -94,13 +94,15 @@ class AppStack(DataContainer):
     """
 
     def __init__(self, apps=None, user_provided_services=None, # pylint: disable=too-many-arguments
-                 brokers=None, buildpacks=None, domain=None, security_groups=None):
+                 brokers=None, buildpacks=None, domain=None, security_groups=None,
+                 post_actions=None):
         self.apps = apps or []
         self.user_provided_services = user_provided_services or []
         self.brokers = brokers or []
         self.buildpacks = buildpacks or []
         self.domain = domain or ''
         self.security_groups = security_groups or []
+        self.post_actions = post_actions or []
 
         self._validate_register_in()
 
@@ -122,7 +124,10 @@ class AppStack(DataContainer):
         domain = appstack.get('domain')
         security_groups = [SecurityGroup.from_dict(sg_dict) for sg_dict
                            in appstack.get('security_groups', [])]
-        return AppStack(apps, user_provided_services, brokers, buildpacks, domain, security_groups)
+        post_actions = [PostAction.from_dict(pa_dict) for pa_dict
+                        in appstack.get('post_actions', [])]
+        return AppStack(apps, user_provided_services, brokers, buildpacks,
+                        domain, security_groups, post_actions)
 
     @staticmethod
     def _get_apps(appstack):
@@ -444,3 +449,20 @@ class SecurityGroup(DataContainer):
         security_group_dict['ports'] = self.ports
 
         return security_group_dict
+
+
+class PostAction(DataContainer):
+    """Set of custom commands (defined in appstack.yml) to be executed after
+    appstack deployment
+    """
+    def __init__(self, name, commands):
+        self.name = name
+        self.commands = commands
+
+    @classmethod
+    def from_dict(cls, post_action_dict):
+        """Creates PostAction from dictionary"""
+        name = post_action_dict['name']
+        commands = post_action_dict['commands']
+
+        return cls(name, commands)
