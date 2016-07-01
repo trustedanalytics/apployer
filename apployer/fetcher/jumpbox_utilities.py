@@ -17,6 +17,7 @@
 # TODO refactor the file and turn on pylint
 # pylint: skip-file
 
+import re
 import json
 import yaml
 import logging
@@ -337,8 +338,9 @@ class ConfigurationExtractor(object):
 
     def _convert_no_proxy_to_java_style(self, no_proxy):
         if not no_proxy:
-                 return ''
-        no_proxy = no_proxy.replace(',.', '|*.') 
+            return ''
+        no_proxy = re.sub(r'^\.', '*.', no_proxy)
+        no_proxy = no_proxy.replace(',.', '|*.')
         no_proxy = no_proxy.replace(',', '|')
         no_proxy += '|localhost|127.*|[::1]' #these entries don't reside in /etc/ansible/hosts
         return no_proxy
