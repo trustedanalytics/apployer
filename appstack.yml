@@ -461,7 +461,7 @@ apps:
     credentials:
       host: http://platform-operations.{{ apps_domain }}
 
-- name: model-catalog
+- name: h2o-model-catalog
   user_provided_services:
   - name: model-catalog
     credentials:
