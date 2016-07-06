@@ -585,7 +585,7 @@ apps:
       SERVICE_PLAN_NAME: shared
       TAGS: kerberos
       service_broker_names: kerberos
-      CREDENTIALS: '{"kdc": "{{ kerberos_host if kerberos_host != "" else " " }}", "krealm": "{{ kerberos_realm if kerberos_host != "" else " " }}", "kcacert": "{{ kerberos_cacert }}", "kuser": "{{ kerberos_username }}", "kpassword": "{{ kerberos_password if kerberos_host != "" else " " }}", "enabled": {{ "true" if kerberos_host != "" else "false"}} }'
+      CREDENTIALS: '{"kdc": "{{ kerberos_host if kerberos_host != "" else " " }}", "krealm": "{{ kerberos_realm if kerberos_host != "" else " " }}", "kcacert": "{{ kerberos_cacert }}", "config": "{{ krb5_base64 }}", "kuser": "{{ kerberos_username }}", "kpassword": "{{ kerberos_password if kerberos_host != "" else " " }}", "enabled": {{ "true" if kerberos_host != "" else "false"}} }'
       VERSION: '{{ wssb_version }}'
   broker_config:
     name: kerberos
