@@ -20,8 +20,7 @@ Wrapper for command line tool "cf".
 
 from collections import namedtuple
 import logging
-from subprocess import Popen, PIPE, STDOUT
-
+from subprocess import Popen, check_output, PIPE, STDOUT, CalledProcessError
 
 CF = 'cf'
 _log = logging.getLogger(__name__) # pylint: disable=invalid-name
@@ -411,14 +410,11 @@ def get_command_output(command):
     Raises:
         CommandFailedError: When the command fails (returns non-zero code).
     """
-    proc = Popen(command, stdout=PIPE)
-    return_code = proc.wait()
-    output = proc.stdout.read()
-
-    if return_code == 0:
-        return output
-    else:
-        raise CommandFailedError('Command failed: {}\nOutput: {}'.format(' '.join(command), output))
+    try:
+        output = check_output(command)
+        return output.rstrip()
+    except CalledProcessError as ex:
+        raise CommandFailedError('Command failed: {}\nOutput: {}'.format(' '.join(command), ex.output))
 
 
 def run_command(command, work_dir='.', skip_output=True, shell=False):
