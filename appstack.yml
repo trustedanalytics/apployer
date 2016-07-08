@@ -450,6 +450,9 @@ apps:
       host: http://workflow-scheduler.{{ apps_domain }}
 
 - name: user-management
+  app_properties:
+    env:
+      SECURITY_CODES_DB_CIPHER_KEY: '{{ security_codes_db_cipher_key }}'
   user_provided_services:
   - name: user-management
     credentials:

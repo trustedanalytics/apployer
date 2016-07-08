@@ -199,6 +199,9 @@ demiurge_password: '%random 32%'
 
 quay_io_url: quay.io
 
+# cipher key for encrypting sensitive information in Security Codes DB in User-Management
+security_codes_db_cipher_key: '%random 32%'
+
 external_tool_rstudio: "false"
 external_tool_gearpump: "true"
 external_tool_h2o: "false"
