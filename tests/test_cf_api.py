@@ -17,26 +17,31 @@
 import json
 
 from mock import MagicMock
+import mock
 import pytest
 
 from apployer import cf_api, cf_cli
 
 
-def test_cf_curl_get(mock_popen):
+@mock.patch('subprocess.check_output')
+def test_cf_curl_get(check_output_mock):
     api_path = '/v2/blabla'
     response_body = '{"a": "b"}'
-    mock_popen.set_command('cf curl {}'.format(api_path), stdout=response_body)
+    check_output_mock.return_value = response_body
 
     assert cf_api._cf_curl_get(api_path) == json.loads(response_body)
+    check_output_mock.assert_called_with('cf curl {}'.format(api_path).split(' '))
 
 
-def test_cf_curl_get_error(mock_popen):
+@mock.patch('subprocess.check_output')
+def test_cf_curl_get_error(check_output_mock):
     api_path = '/v2/blabla'
     response_body = '{"error_code": "CF-SomeError"}'
-    mock_popen.set_command('cf curl {}'.format(api_path), stdout=response_body)
+    check_output_mock.return_value = response_body
 
     with pytest.raises(cf_cli.CommandFailedError):
         cf_api._cf_curl_get(api_path)
+    check_output_mock.assert_called_with('cf curl {}'.format(api_path).split(' '))
 
 
 UPSI_CONFIG = """{
@@ -151,41 +156,51 @@ SERVICE_BINDING = {
 }
 
 
-def test_delete_service_binding(mock_popen):
-    mock_popen.set_command('cf curl {} -X DELETE'.format(BINDING_URL))
+@mock.patch('subprocess.check_output')
+def test_delete_service_binding(check_output_mock):
+    check_output_mock.return_value = ''
 
     cf_api.delete_service_binding(SERVICE_BINDING)
 
+    check_output_mock.assert_called_with('cf curl {} -X DELETE'.format(BINDING_URL).split(' '))
 
-def test_delete_service_binding_error(mock_popen):
-    mock_popen.set_command('cf curl {} -X DELETE'.format(BINDING_URL), stdout='{"some": "output"}')
+
+@mock.patch('subprocess.check_output')
+def test_delete_service_binding_error(check_output_mock):
+    check_output_mock.return_value = '{"some": "output"}'
 
     with pytest.raises(cf_cli.CommandFailedError):
         cf_api.delete_service_binding(SERVICE_BINDING)
 
+    check_output_mock.assert_called_with('cf curl {} -X DELETE'.format(BINDING_URL).split(' '))
 
-def test_create_service_binding(mock_popen):
+
+@mock.patch('subprocess.check_output')
+def test_create_service_binding(check_output_mock):
     service_guid = 'some-fake-guid'
     app_guid = 'some-other-fake-guid'
     params = json.dumps({'service_instance_guid': service_guid, 'app_guid': app_guid})
-    mock_popen.set_command("cf curl /v2/service_bindings -X POST -d {}".format(params),
-                           stdout='{"some": "output"}')
+    check_output_mock.return_value = '{"some": "output"}'
 
     cf_api.create_service_binding(service_guid, app_guid)
 
+    check_output_mock.assert_called_with('cf curl /v2/service_bindings -X POST -d'.split(' ') + [params])
 
-def test_create_service_binding_error(mock_popen):
+
+@mock.patch('subprocess.check_output')
+def test_create_service_binding_error(check_output_mock):
     service_guid = 'some-fake-guid'
     app_guid = 'some-other-fake-guid'
     params = json.dumps({'service_instance_guid': service_guid, 'app_guid': app_guid})
-    mock_popen.set_command("cf curl /v2/service_bindings -X POST -d {}".format(params),
-                           stdout='{"error_code": "CF-something"}')
+    check_output_mock.return_value = '{"error_code": "CF-something"}'
 
     with pytest.raises(cf_cli.CommandFailedError):
         cf_api.create_service_binding(service_guid, app_guid)
+    check_output_mock.assert_called_with('cf curl /v2/service_bindings -X POST -d'.split(' ') + [params])
 
 
-def test_get_app_name(mock_popen):
+@mock.patch('subprocess.check_output')
+def test_get_app_name(check_output_mock):
     app_guid = 'some-fake-guid'
     app_name = 'some-fake-name'
     app_description = """{
@@ -201,6 +216,7 @@ def test_get_app_name(mock_popen):
   }
 }
 """
-    mock_popen.set_command("cf curl /v2/apps/{}".format(app_guid), stdout=app_description)
+    check_output_mock.return_value = app_description
 
     assert cf_api.get_app_name(app_guid) == app_name
+    check_output_mock.assert_called_with('cf curl /v2/apps/{}'.format(app_guid).split(' '))

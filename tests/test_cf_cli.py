@@ -15,11 +15,13 @@
 #
 
 from mock import call
+import mock
 import pytest
 
 from .fake_cli_outputs import GET_ENV_SUCCESS, GET_SERVICE_INFO_SUCCESS
 from apployer import cf_cli
 from apployer.cf_cli import CommandFailedError, CfInfo
+from subprocess import CalledProcessError, PIPE, STDOUT
 
 
 def test_run_command_output_without_redirection_fail(mock_popen):
@@ -28,19 +30,24 @@ def test_run_command_output_without_redirection_fail(mock_popen):
         cf_cli._run_command([cf_cli.CF, 'bla'], redirect_output=False)
 
 
-def test_get_app_env(mock_popen):
+@mock.patch('subprocess.check_output')
+def test_get_app_env(check_output_mock):
     app_name = 'FAKYFAKE'
-    mock_popen.set_command('cf env ' + app_name, stdout=GET_ENV_SUCCESS)
+    check_output_mock.return_value = GET_ENV_SUCCESS
 
-    assert cf_cli.env(app_name) == GET_ENV_SUCCESS
+    assert cf_cli.env(app_name) == GET_ENV_SUCCESS.rstrip()
+    check_output_mock.assert_called_with('cf env {}'.format(app_name).split(' '))
 
 
-def test_get_app_env_fail(mock_popen):
+@mock.patch('subprocess.check_output')
+def test_get_app_env_fail(check_output_mock):
     app_name = 'bla'
-    mock_popen.set_command('cf env ' + app_name, returncode=1)
+    cmd = 'cf env {}'.format(app_name)
+    check_output_mock.side_effect = CalledProcessError(1, cmd)
 
     with pytest.raises(CommandFailedError):
         cf_cli.env(app_name)
+    check_output_mock.assert_called_with(cmd.split(' '))
 
 
 def test_set_api_url_with_validation(mock_popen):
@@ -121,11 +128,13 @@ def test_enable_service_access(mock_popen):
     cf_cli.enable_service_access(service_name)
 
 
-def test_get_service_info(mock_popen):
+@mock.patch('subprocess.check_output')
+def test_get_service_info(check_output_mock):
     service_name = 'some-service'
-    mock_popen.set_command('cf service ' + service_name, stdout=GET_SERVICE_INFO_SUCCESS)
+    check_output_mock.return_value = GET_SERVICE_INFO_SUCCESS
 
-    assert cf_cli.service(service_name) == GET_SERVICE_INFO_SUCCESS
+    assert cf_cli.service(service_name) == GET_SERVICE_INFO_SUCCESS.rstrip()
+    check_output_mock.assert_called_with('cf service {}'.format(service_name).split(' '))
 
 
 def test_login(mock_popen):
@@ -206,40 +215,46 @@ def test_create_space(mock_popen):
     cf_cli.create_space(space_name, org_name)
 
 
-def test_get_buildpacks(mock_popen):
+@mock.patch('subprocess.check_output')
+def test_get_buildpacks(check_output_mock):
     cmd_output = """Getting buildpacks...
 
 buildpack              position   enabled   locked   filename
 tap-java-buildpack     1          true      false    tap-java-buildpack-v3.4-5.zip
 staticfile_buildpack   2          true      false    staticfile_buildpack-cached-v1.1.0.zip
 """
-    mock_popen.set_command('cf buildpacks', stdout=cmd_output)
+    check_output_mock.return_value = cmd_output
     proper_buildpacks = [cf_cli.BuildpackDescription('tap-java-buildpack', '1', 'true', 'false',
                                                      'tap-java-buildpack-v3.4-5.zip'),
                          cf_cli.BuildpackDescription('staticfile_buildpack', '2', 'true', 'false',
                                                      'staticfile_buildpack-cached-v1.1.0.zip')]
 
     assert cf_cli.buildpacks() == proper_buildpacks
+    check_output_mock.assert_called_with('cf buildpacks'.split(' '))
 
 
-def test_get_oauth_token(mock_popen):
+@mock.patch('subprocess.check_output')
+def test_get_oauth_token(check_output_mock):
     cmd_output = """Getting OAuth token...
 OK
 
 bearer abcdf.1233456789.fdcba
 """
-    mock_popen.set_command('cf oauth-token', stdout=cmd_output)
+    check_output_mock.return_value = cmd_output
 
     assert cf_cli.oauth_token() == 'bearer abcdf.1233456789.fdcba'
+    check_output_mock.assert_called_with('cf oauth-token'.split(' '))
 
 
-def test_get_service_guid(mock_popen):
+@mock.patch('subprocess.check_output')
+def test_get_service_guid(check_output_mock):
     service_guid = '8b89a54b-b292-49eb-a8c4-2396ec038120'
     cmd_output = service_guid + '\n'
     service_name = 'some-service'
-    mock_popen.set_command('cf service --guid {}'.format(service_name), stdout=cmd_output)
+    check_output_mock.return_value = cmd_output
 
     assert cf_cli.get_service_guid(service_name) == service_guid
+    check_output_mock.assert_called_with('cf service --guid {}'.format(service_name).split(' '))
 
 
 def test_create_security_group(mock_popen):
