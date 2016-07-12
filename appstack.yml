@@ -101,12 +101,11 @@ apps:
   app_properties:
     env:
       USER_PASSWORD: '{{ h2o_broker_user_pass }}'
-# Do not register as a broker to prevent enabling h2o service. Remove after DPNG-6678.
-#  broker_config:
-#    name: h2o
-#    url: https://h2o-broker.{{ apps_domain }}
-#    auth_username: '{{ h2o_broker_user }}'
-#    auth_password: '{{ h2o_broker_user_pass }}'
+  broker_config:
+    name: h2o
+    url: https://h2o-broker.{{ apps_domain }}
+    auth_username: '{{ h2o_broker_user }}'
+    auth_password: '{{ h2o_broker_user_pass }}'
 
 - name: hdfs-broker
   app_properties:
@@ -411,6 +410,7 @@ apps:
   app_properties:
     env:
       SERVICETYPES: "rstudio,jupyter,gearpump,h2o"
+      ENABLE_RETRIEVING_OF_CREDS_ONLY_ONCE: false
   user_provided_services:
   - name: service-exposer
     credentials:
