@@ -63,6 +63,7 @@ hgm_role_name = 'HADOOPGROUPSMAPPING-HADOOPGROUPSMAPPING_RESTSERVER'
 DEFAULT_SENTRY_PORT = 8038
 DEFAULT_ARCADIA_PORT = 80
 DEFAULT_HUE_PORT = 8888
+DEFAULT_H2O_PROVISIONER_PORT = '9876'
 DEFAULT_OOZIE_PORT = '11000'
 DEFAULT_YARN_PORT = '8032'
 
@@ -166,6 +167,8 @@ class ConfigurationExtractor(object):
         cf_tiny_yaml = yaml.load(cf_tiny_yaml_file_content)
         result = {
             "nats_ip": cf_tiny_yaml['properties']['nats']['machines'][0],
+            "h2o_provisioner_host": cf_tiny_yaml['jobs'][0]['networks'][0]['static_ips'][0],
+            "h2o_provisioner_port": DEFAULT_H2O_PROVISIONER_PORT,
             "cf_admin_password": cf_tiny_yaml['properties']['loggregator_endpoint']['shared_secret'],
             "cf_admin_client_password": cf_tiny_yaml['properties']['loggregator_endpoint']['shared_secret'],
             "apps_domain": cf_tiny_yaml['properties']['domain'],
@@ -304,6 +307,7 @@ class ConfigurationExtractor(object):
         result['hue_node'] = self._get_host('HUE', 'HUE-HUE_SERVER', deployment_settings)['hostname']
         result['hue_port'] = DEFAULT_HUE_PORT
         result['external_tool_hue'] = self._check_port(result['hue_node'], result['hue_port'])
+        result['h2o_node'] = self._inventory['cdh-worker'][0]
         result['arcadia_node'] = self._inventory['cdh-worker'][0]
         result['arcadia_port'] = DEFAULT_ARCADIA_PORT
         result['external_tool_arcadia'] = self._check_port(result['arcadia_node'], result['arcadia_port'])
