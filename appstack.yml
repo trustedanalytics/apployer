@@ -8,7 +8,7 @@ apps:
 - name: auth-gateway
   order: 1
   push_options:
-    post_command: 'curl -X PUT -H "Authorization: $(cf oauth-token | grep bearer)" -v auth-gateway.{{ run_domain }}/organizations/$(cf org {{ core_org_name }} --guid);curl -X PUT -H "Authorization: $(cf oauth-token | grep bearer)" -v auth-gateway.{{ run_domain }}/organizations/$(cf org {{ core_org_name }} --guid)/users/$(cf oauth-token | grep bearer | cut -d"." -f2 | base64 -d | jq .user_id | tr -d \")'
+    post_command: 'curl -X PUT -H "Authorization: $(cf oauth-token | grep bearer)" -v auth-gateway.{{ run_domain }}/synchronize -f'
   app_properties:
     buildpack: java_buildpack
     env:
@@ -33,12 +33,14 @@ apps:
       KRB_PASSWORD: "{{ kerberos_password if kerberos_host != '' }}"
       KRB_REALM: "{{ kerberos_realm if kerberos_host != '' }}"
       KRB_USER: "{{ kerberos_username }}"
+      KRB_ENABLED: '{{ "true" if kerberos_host != "" else "false"}}'
       HADOOP_PROVIDED_ZIP: '{{ import_hadoop_conf_hdfs }}'
       CLOUDERA_USER: "{{ cloudera_user }}"
       CLOUDERA_PASSWORD: "{{ cloudera_password }}"
       CLOUDERA_ADDRESS: "{{ cloudera_address }}"
       CLOUDERA_PORT: "{{ cloudera_port }}"
       ZK_CLUSTER_URL: '{{ master_node_host_1 }}:2181,{{ master_node_host_2 }}:2181,{{ master_node_host_3 }}:2181'
+      ZK_PASSWORD: "{{ authgateway_zookeeper_password }}"
 
 - name: auth-proxy
   order: 0

@@ -503,7 +503,8 @@ class AppDeployer(object):
 
     def _execute_post_command(self):
         if self.app.push_options.post_command:
-            _log.info('App %s has post-push commands, executing...', self.app.name)
+            _log.info('App %s has post-push commands, executing: %s', self.app.name,
+                      self.app.push_options.post_command)
             subprocess.check_call(self.app.push_options.post_command, shell=True)
 
 

@@ -141,6 +141,9 @@ kafka_broker_user_pass: '%random 32%'
 
 authgateway_principals_suffix: /sys
 
+# authgateway password for access zookeeper znodes
+authgateway_zookeeper_password: '%random 32%'
+
 # service principal name defined for Sentry service
 sentry_principal: sentry
 
