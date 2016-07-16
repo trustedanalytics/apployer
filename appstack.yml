@@ -262,7 +262,6 @@ apps:
       - mongodb30-multinode
       - mysql56-multinode
       - postgresql94-multinode
-      - seahorse
   user_provided_services:
     - name: kubernetes-broker
       credentials:
@@ -410,7 +409,7 @@ apps:
 - name: service-exposer
   app_properties:
     env:
-      SERVICETYPES: "rstudio,jupyter,gearpump,h2o,seahorse"
+      SERVICETYPES: "rstudio,jupyter,gearpump,h2o"
       ENABLE_RETRIEVING_OF_CREDS_ONLY_ONCE: false
   user_provided_services:
   - name: service-exposer
