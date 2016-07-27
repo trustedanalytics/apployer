@@ -375,7 +375,8 @@ class ConfigurationExtractor(object):
             f.file.write(script)
             f.file.close()
             if self._ssh_required:
-                command = 'scp -i {keyname} {script_name} {username}@{hostname}:{target}'.format(
+                command = 'scp -i {keyname} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no ' \
+                          '{script_name} {username}@{hostname}:{target}'.format(
                     keyname=self._ssh_key_filename, script_name=f.name, username=self._username,
                     hostname=self._hostname, target=target)
                 self._logger.info('Execute command: {}'.format(command))
