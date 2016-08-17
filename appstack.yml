@@ -12,6 +12,7 @@ apps:
   app_properties:
     buildpack: java_buildpack
     env:
+      ENGINE_TIMEOUT: 600
       HDFS_SUPERUSER: '{{ hdfs_super_user }}{{ authgateway_principals_suffix if kerberos_host != '' }}'
       HDFS_KEYTAB: '{{ auth_gateway_keytab_value }}'
       HGM_PRINCIPAL: '{{ hgm_principal }}{{ authgateway_principals_suffix if kerberos_host != '' }}'
