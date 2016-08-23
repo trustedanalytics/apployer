@@ -130,9 +130,11 @@ class ConfigurationExtractor(object):
             config.readfp(open(f.name))
             return config
 
-    def _get_ansible_var(self, option, section='jump-boxes:vars', default_value=''):
+    def _get_ansible_var(self, option, section='jump-boxes:vars', section2='tqd:vars', default_value=''):
         if self._jumpboxes_vars.has_option(section, option):
             return self._jumpboxes_vars.get(section, option)
+        elif self._jumpboxes_vars.has_option(section2, option):
+            return self._jumpboxes_vars.get(section2, option)
         else:
             return default_value
 
