@@ -140,6 +140,8 @@ apps:
       plan: shared
     - name: hdfs-instance-bare
       plan: shared
+    - name: hdfs-for-se-sparktk
+      plan: bare
 
 - name: hbase-broker
   app_properties:
@@ -303,6 +305,21 @@ apps:
     env:
       description: Scoring engine for TAP Analytics Toolkit models
       display_name: TAP Scoring Engine
+      CC_URI: api.{{ run_domain }}
+      UAA_CLIENT_NAME: '{{ atk_client_name }}'
+      UAA_CLIENT_PASSWORD: '{{ atk_client_pass }}'
+      UAA_URI: uaa.{{ run_domain }}
+
+- name: scoring-engine-spark-tk
+  register_in: application-broker
+  register_config: '[{"service_name":"hdfs-for-se-sparktk", "parameters":["uri"]}]'
+  push_options:
+    params: --no-start
+  app_properties:
+    buildpack: tap-java-buildpack
+    env:
+      description: Scoring engine for Spark-tk models
+      display_name: Scoring Engine for Spark-tk
       CC_URI: api.{{ run_domain }}
       UAA_CLIENT_NAME: '{{ atk_client_name }}'
       UAA_CLIENT_PASSWORD: '{{ atk_client_pass }}'
